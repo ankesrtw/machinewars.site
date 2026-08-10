@@ -17,9 +17,8 @@
     var LS_QIDX   = 'signal_music_queue_index';
     var LS_SHUF   = 'signal_music_shuffle';
 
-    // Absolute (deploy-root) path so the persistent player works from any page
-    // — the hub (/), the game (/game/), and the listening app (/music/).
-    var API_BASE  = '/music/data';
+    // Relative to deploy root — standalone repo's /music/data no longer exists here.
+    var API_BASE  = './music/data';
 
     var audio     = null;
     var bar       = null;
