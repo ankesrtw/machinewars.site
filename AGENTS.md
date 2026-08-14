@@ -1,5 +1,10 @@
 # AGENTS.md
 
+This file describes the project **as it is today**. For where it's going — the
+Android/Steam/Unity roadmap — see [docs/ROADMAP.md](docs/ROADMAP.md) and the
+per-track docs beside it. Each track is meant to be picked up as its own
+session; read the roadmap plus the one track doc, not all of them.
+
 Machine Wars — a **static, no-build** Three.js wave-survival shooter deployed to Cloudflare Pages. There is **no package.json, no bundler, no tests, no linter**. ES modules run directly in the browser via an inline `<script type="importmap">` that maps `three` / `three/addons/` to self-hosted files in `vendor/three/` (no CDN). Verify changes by opening the site in a browser.
 
 ## Run / deploy
