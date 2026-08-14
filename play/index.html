@@ -3,12 +3,11 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
-    <meta name="description" content="Autonomous War V2 — Three.js build. Defend against waves of war machines with PBR graphics and post-processing.">
-    <title>Autonomous War // V2 — Three.js</title>
-    <link rel="stylesheet" href="vendor/music/music-player.css">
-    <link rel="stylesheet" href="css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+    <meta name="description" content="MACHINE WARS — Humans and the Grid, Everywhere. Three.js wave-survival shooter. Defend humanity's assets against the machine horde with PBR graphics and post-processing.">
+    <title>MACHINE WARS // Play — Humans and the Grid, Everywhere</title>
+    <link rel="stylesheet" href="../css/style.css">
 </head>
 
 <body>
@@ -16,11 +15,13 @@
     <!-- Header -->
     <header class="aw-header">
         <div class="aw-header-left">
-            <span class="aw-header-title">AUTONOMOUS WAR</span>
-            <span class="aw-header-badge">V2</span>
+            <img class="aw-header-logo" src="../assets/logo-v2.svg" alt="MACHINE WARS">
+            <span class="aw-header-title">MACHINE WARS</span>
+            <span class="aw-header-badge">V1</span>
             <span class="aw-header-engine">THREE.JS</span>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div class="aw-header-right">
+            <span class="aw-header-status"><i class="aw-blink"></i>GRID ONLINE</span>
             <button class="aw-btn" id="aw-mute-btn" onclick="toggleMute()">MUTE</button>
             <button class="aw-btn" id="aw-pause-btn" onclick="togglePause()">PAUSE</button>
             <button class="aw-btn" onclick="toggleSettings()">SETTINGS</button>
@@ -70,76 +71,113 @@
 
     <!-- Loading -->
     <div id="aw-loading">
-        <div class="aw-loading-title">AUTONOMOUS WAR // V2</div>
+        <div class="aw-loading-mark">▦</div>
+        <div class="aw-loading-title">MACHINE WARS // V1</div>
         <div class="aw-loading-sub">INITIALIZING THREE.JS COMBAT SYSTEMS</div>
         <div class="aw-loading-bar-wrap"><div class="aw-loading-bar-fill" id="aw-loading-fill"></div></div>
-        <div class="aw-loading-hint">LOADING PBR ENVIRONMENT...</div>
+        <div class="aw-loading-hint" id="aw-loading-hint2">LOADING PBR ENVIRONMENT...</div>
     </div>
 
     <!-- Start -->
     <div class="aw-overlay" id="aw-start">
-        <div class="aw-overlay-title blue">AUTONOMOUS WAR // V2</div>
-        <div class="aw-overlay-sub">
-            THREE.JS BUILD — PBR · BLOOM · SOFT SHADOWS<br>
-            WAVE SURVIVAL — DEFEND YOUR POSITION
+        <div class="aw-console">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+
+            <p class="aw-kicker">/// DEPLOYMENT TERMINAL — 2087.07.04</p>
+
+            <div class="aw-title-wrap">
+                <div class="aw-overlay-title blue">MACHINE WARS</div>
+                <div class="aw-title-glitch" aria-hidden="true" data-text="MACHINE WARS"></div>
+                <p class="aw-tagline">HUMANS AND THE GRID, EVERYWHERE</p>
+            </div>
+
+            <div class="aw-overlay-sub">
+                THREE.JS BUILD — PBR · BLOOM · SOFT SHADOWS<br>
+                WAVE SURVIVAL — DEFEND YOUR POSITION
+            </div>
+
+            <div class="aw-status-row">
+                <span class="aw-blink"></span> SYSTEMS ONLINE · 7 SECTORS · 3 WEAPONS · 10 WAVES
+            </div>
+
+            <div class="aw-scene-picker-label">SELECT ARENA //</div>
+            <div class="aw-scene-picker" id="aw-scene-picker"></div>
+
+            <div class="aw-controls-hint">
+                <span><b>W A S D</b> MOVE</span><span><b>MOUSE</b> AIM</span><span><b>CLICK</b> FIRE</span><span><b>R</b> RELOAD</span><span><b>G</b> GRENADE</span><span><b>1/2/3</b> WEAPONS</span><span><b>SCROLL</b> SWITCH</span>
+            </div>
+
+            <button class="aw-play-btn" id="aw-start-btn">▶ ENGAGE</button>
         </div>
-        <div class="aw-scene-picker-label">SELECT ARENA</div>
-        <div class="aw-scene-picker" id="aw-scene-picker"></div>
-        <div class="aw-controls-hint">WASD → MOVE &nbsp;·&nbsp; MOUSE → AIM &nbsp;·&nbsp; CLICK → FIRE &nbsp;·&nbsp; R → RELOAD &nbsp;·&nbsp; G → GRENADE &nbsp;·&nbsp; 1/2/3 → WEAPONS &nbsp;·&nbsp; SCROLL → SWITCH</div>
-        <button class="aw-play-btn" id="aw-start-btn">ENGAGE</button>
     </div>
 
     <!-- Game over -->
     <div class="aw-overlay hidden" id="aw-gameover">
-        <div class="aw-overlay-title red">BASE BREACHED</div>
-        <div class="aw-overlay-sub">YOUR POSITION HAS BEEN OVERRUN</div>
-        <div class="aw-overlay-score" id="aw-go-score">WAVE 1 — 0 KILLS</div>
-        <button class="aw-play-btn" id="aw-restart-btn">REDEPLOY</button>
+        <div class="aw-console">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+            <div class="aw-overlay-title red">BASE BREACHED</div>
+            <div class="aw-overlay-sub">YOUR POSITION HAS BEEN OVERRUN</div>
+            <div class="aw-overlay-score" id="aw-go-score">WAVE 1 — 0 KILLS</div>
+            <button class="aw-play-btn" id="aw-restart-btn">▶ REDEPLOY</button>
+        </div>
     </div>
 
     <!-- Win -->
     <div class="aw-overlay hidden" id="aw-win">
-        <div class="aw-overlay-title green">THREAT NEUTRALISED</div>
-        <div class="aw-overlay-sub">ALL AUTONOMOUS UNITS DESTROYED<br>BASE DEFENDED</div>
-        <div class="aw-overlay-score" id="aw-win-score">10 WAVES — 0 KILLS</div>
-        <button class="aw-play-btn" id="aw-win-restart-btn">NEW DEPLOYMENT</button>
+        <div class="aw-console">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+            <div class="aw-overlay-title green">THREAT NEUTRALISED</div>
+            <div class="aw-overlay-sub">ALL AUTONOMOUS UNITS DESTROYED<br>BASE DEFENDED</div>
+            <div class="aw-overlay-score" id="aw-win-score">10 WAVES — 0 KILLS</div>
+            <button class="aw-play-btn" id="aw-win-restart-btn">▶ NEW DEPLOYMENT</button>
+        </div>
     </div>
 
     <!-- Settings -->
     <div class="aw-overlay hidden" id="aw-settings">
-        <div class="aw-overlay-title white" style="font-size:24px">SETTINGS</div>
-        <div class="aw-settings-grid">
-            <label>MASTER VOLUME</label><input type="range" id="aw-vol-master" min="0" max="100" value="70">
-            <label>SFX VOLUME</label><input type="range" id="aw-vol-sfx" min="0" max="100" value="80">
-            <label>MUSIC VOLUME</label><input type="range" id="aw-vol-music" min="0" max="100" value="50">
-            <label>MOUSE SENSITIVITY</label><input type="range" id="aw-sensitivity" min="1" max="100" value="36">
-            <label>FOG DENSITY</label><input type="range" id="aw-fog" min="0" max="100" value="40">
-            <label>QUALITY PRESET</label>
-            <select id="aw-quality">
-                <option value="auto">AUTO</option>
-                <option value="low">LOW</option>
-                <option value="medium">MEDIUM</option>
-                <option value="high" selected>HIGH</option>
-            </select>
+        <div class="aw-console aw-console-settings">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+            <div class="aw-overlay-title white" style="font-size:24px">SETTINGS</div>
+            <div class="aw-settings-grid">
+                <label>MASTER VOLUME</label><input type="range" id="aw-vol-master" min="0" max="100" value="70">
+                <label>SFX VOLUME</label><input type="range" id="aw-vol-sfx" min="0" max="100" value="80">
+                <label>MUSIC VOLUME</label><input type="range" id="aw-vol-music" min="0" max="100" value="50">
+                <label>MOUSE SENSITIVITY</label><input type="range" id="aw-sensitivity" min="1" max="100" value="36">
+                <label>FOG DENSITY</label><input type="range" id="aw-fog" min="0" max="100" value="40">
+                <label>QUALITY PRESET</label>
+                <select id="aw-quality">
+                    <option value="auto">AUTO</option>
+                    <option value="low">LOW</option>
+                    <option value="medium">MEDIUM</option>
+                    <option value="high" selected>HIGH</option>
+                </select>
+            </div>
+            <button class="aw-play-btn" id="aw-settings-close" style="margin-top:20px">CLOSE</button>
         </div>
-        <button class="aw-play-btn" id="aw-settings-close" style="margin-top:20px">CLOSE</button>
     </div>
 
     <!-- Three.js self-hosted ES modules via importmap (no build step, no CDN) -->
     <script type="importmap">
     {
         "imports": {
-            "three": "./vendor/three/three.module.js",
-            "three/addons/": "./vendor/three/addons/"
+            "three": "../vendor/three/three.module.js",
+            "three/addons/": "../vendor/three/addons/"
         }
     }
     </script>
-    <script type="module" src="src/main.js"></script>
-
-    <!-- Global soundtrack player + game-page audio defaults/toggles -->
-    <script src="vendor/music/vault-auth-stub.js"></script>
-    <script src="vendor/music/music-player.js"></script>
-    <script src="game-music.js"></script>
+    <script type="module" src="../src/main.js"></script>
 
 </body>
 </html>

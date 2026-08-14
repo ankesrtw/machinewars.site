@@ -5,7 +5,7 @@
  * V2 keeps the native window.Audio constructor intact.
  *
  *   • Game's own procedural SFX/music start MUTED (toggle: header "SFX:" button).
- *   • Global soundtrack (MarsMusic) is pinned to "The Machine War (v1)" and starts
+ *   • Global soundtrack (MachineWarsMusic) is pinned to "The Machine War (v1)" and starts
  *     on the first user gesture. Toggle via the injected "MUSIC:" button.
  */
 (function () {
@@ -33,16 +33,16 @@
 
   function syncMusicBtn() {
     var btn = document.getElementById('aw-music-btn');
-    if (!btn || !window.MarsMusic) return;
-    btn.textContent = window.MarsMusic.getState().playing ? 'MUSIC: ON' : 'MUSIC: OFF';
+    if (!btn || !window.MachineWarsMusic) return;
+    btn.textContent = window.MachineWarsMusic.getState().playing ? 'MUSIC: ON' : 'MUSIC: OFF';
   }
 
   function startSoundtrack() {
-    if (started || !window.MarsMusic) return;
+    if (started || !window.MachineWarsMusic) return;
     started = true;
-    var st = window.MarsMusic.getState();
-    if (st.queue && st.queue.length) window.MarsMusic.queue(st.queue, 0);
-    else window.MarsMusic.loadDefaults(true, true);
+    var st = window.MachineWarsMusic.getState();
+    if (st.queue && st.queue.length) window.MachineWarsMusic.queue(st.queue, 0);
+    else window.MachineWarsMusic.loadDefaults(true, true);
     setTimeout(syncMusicBtn, 80);
   }
 
@@ -53,7 +53,7 @@
     b.className = 'aw-btn'; b.id = 'aw-music-btn'; b.textContent = 'MUSIC: ON';
     b.addEventListener('click', function () {
       if (!started) { wantMusic = true; startSoundtrack(); return; }
-      window.MarsMusic.toggle();
+      window.MachineWarsMusic.toggle();
       setTimeout(syncMusicBtn, 80);
     });
     mute.parentNode.insertBefore(b, mute.nextSibling);
@@ -64,7 +64,7 @@
     syncSfxBtn();
     var sfx = document.getElementById('aw-mute-btn');
     if (sfx) sfx.addEventListener('click', function () { setTimeout(syncSfxBtn, 30); });
-    if (window.MarsMusic) window.MarsMusic.onStateChange(syncMusicBtn);
+    if (window.MachineWarsMusic) window.MachineWarsMusic.onStateChange(syncMusicBtn);
   });
 
   function onFirstGesture() {

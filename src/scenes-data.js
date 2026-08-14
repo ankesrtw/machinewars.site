@@ -1,16 +1,16 @@
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════════════
-   AUTONOMOUS WAR v2 — scenes.js
+   MACHINE WARS — scenes.js
    Scene configuration module — all scene-specific data lives here.
    Each scene config captures sky, lighting, ground, layout, props,
    particles, and spawn parameters.
    ═══════════════════════════════════════════════════════════════════ */
 
 // ── Asset base path ─────────────────────────────────────────────────
-// 14 GLBs + ground/skybox textures live in this repo's assets/ (copied
-// from the SIGNAL standalone repo's Babylon V1 build — no duplication).
-const ASSET_BASE = './assets/';
+// Resolve assets from this module rather than from the page URL. This remains
+// correct from /play/, /play/<arena>/, and deployments mounted below a path.
+const ASSET_BASE = new URL('../assets/', import.meta.url).href;
 
 const SCENE_MODEL_BASE = ASSET_BASE + 'models/';
 const SCENE_TEXTURE_BASE = ASSET_BASE + 'textures/';
@@ -29,40 +29,52 @@ const SCENE_CONFIGS = {
         name: 'INDUSTRIAL WARZONE',
         description: 'Post-industrial compound. Heavy fog, burning wreckage.',
         previewGradient: 'linear-gradient(135deg, #1a1510 0%, #3a2510 50%, #0a0a08 100%)',
+        previewImage: ASSET_BASE + 'art/creon-station.png',
 
         // Sky
         sky: {
             type: 'procedural', // 'procedural' | 'equirectangular'
             textureUrl: null,   // set after generation
-            clearColor: [0.12, 0.11, 0.10, 1],
-            fogColor: [0.12, 0.11, 0.10],
+            clearColor: [0.18, 0.17, 0.15, 1],
+            fogColor: [0.18, 0.17, 0.15],
             fogDensity: 0.008,
             hasLightning: true,
+            // CREON — the orbital relay looming over the horizon.
+            creon: {
+                textureUrl: 'art/creon-machine-wars.png',
+                tint: [1.0, 0.86, 0.72],
+                opacity: 0.9,
+                size: 213,
+                distance: 300,
+                elevation: 0.4,
+                azimuth: 3.14159,
+                crop: { x: 0.134, y: 0.0, w: 0.417, h: 0.508 },
+            },
             // Procedural sky params (used when type === 'procedural')
-            baseColor: 'rgb(48, 44, 42)',
+            baseColor: 'rgb(78, 70, 62)',
             horizonGlow: true,
         },
 
         // Lighting
         lighting: {
-            ambientIntensity: 0.35,
-            ambientDiffuse: [0.55, 0.50, 0.48],
-            ambientGround: [0.12, 0.10, 0.09],
-            sunIntensity: 0.7,
-            sunDiffuse: [0.65, 0.58, 0.52],
-            sunSpecular: [0.1, 0.08, 0.06],
+            ambientIntensity: 0.52,
+            ambientDiffuse: [0.66, 0.60, 0.56],
+            ambientGround: [0.18, 0.15, 0.13],
+            sunIntensity: 1.0,
+            sunDiffuse: [0.80, 0.72, 0.64],
+            sunSpecular: [0.12, 0.10, 0.08],
             sunDirection: [-0.3, -1, -0.5],
-            glowIntensity: 0.3,
+            glowIntensity: 0.35,
         },
 
         // Ground
         ground: {
             type: 'procedural', // 'procedural' | 'texture'
             textureUrl: null,
-            width: 200, height: 200, subdivisions: 80,
+            width: 320, height: 320, subdivisions: 110,
             displacementSeed: 77,
             displacementScale: 1.6,
-            flatZoneRadius: 18,
+            flatZoneRadius: 26,
             textureSeed: 123,
             textureUScale: 8, textureVScale: 8,
             baseColor: 'rgb(72, 62, 52)',
@@ -77,7 +89,7 @@ const SCENE_CONFIGS = {
         },
 
         // Perimeter
-        perimeter: { halfW: 55, halfD: 55 },
+        perimeter: { halfW: 88, halfD: 88 },
         gateDirection: 'south',
         gateHalfWidth: 8,
         wallColor: [0.25, 0.22, 0.18],
@@ -90,8 +102,8 @@ const SCENE_CONFIGS = {
         // Spawn
         spawn: {
             arcAngle: Math.PI * 1.1,
-            radiusMin: 25,
-            radiusMax: 35,
+            radiusMin: 38,
+            radiusMax: 58,
             direction: -1, // negative Z = south
         },
 
@@ -256,6 +268,7 @@ const SCENE_CONFIGS = {
         name: 'MARS COLONY RUINS',
         description: 'Abandoned colony on the red planet. Dust storms, low visibility.',
         previewGradient: 'linear-gradient(135deg, #3a1508 0%, #5a2010 50%, #1a0804 100%)',
+        previewImage: ASSET_BASE + 'textures/skybox/mars_sky.png',
 
         sky: {
             type: 'equirectangular',
@@ -264,6 +277,17 @@ const SCENE_CONFIGS = {
             fogColor: [0.35, 0.12, 0.05],
             fogDensity: 0.012,
             hasLightning: false,
+            // CREON — the orbital relay looming over the horizon.
+            creon: {
+                textureUrl: 'art/creon-machine-wars.png',
+                tint: [1.0, 0.78, 0.62],
+                opacity: 0.85,
+                size: 213,
+                distance: 300,
+                elevation: 0.36,
+                azimuth: 3.4,
+                crop: { x: 0.134, y: 0.0, w: 0.417, h: 0.508 },
+            },
         },
 
         lighting: {
@@ -280,10 +304,10 @@ const SCENE_CONFIGS = {
         ground: {
             type: 'texture',
             textureUrl: 'ground/mars_ground.png',
-            width: 200, height: 200, subdivisions: 60,
+            width: 320, height: 320, subdivisions: 90,
             displacementSeed: 101,
             displacementScale: 2.0,
-            flatZoneRadius: 16,
+            flatZoneRadius: 24,
             textureUScale: 10, textureVScale: 10,
             baseColor: 'rgb(128, 52, 26)',
             fallbackColor: [0.5, 0.2, 0.1],
@@ -295,7 +319,7 @@ const SCENE_CONFIGS = {
             slabColor: [0.5, 0.25, 0.12],
         },
 
-        perimeter: { halfW: 50, halfD: 50 },
+        perimeter: { halfW: 80, halfD: 80 },
         gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.4, 0.2, 0.12],
@@ -306,8 +330,8 @@ const SCENE_CONFIGS = {
 
         spawn: {
             arcAngle: Math.PI * 1.1,
-            radiusMin: 22,
-            radiusMax: 32,
+            radiusMin: 34,
+            radiusMax: 52,
             direction: -1,
         },
 
@@ -418,6 +442,7 @@ const SCENE_CONFIGS = {
         name: 'ALIEN CRASH SITE',
         description: 'Otherworldly terrain. Bioluminescent debris, eerie atmosphere.',
         previewGradient: 'linear-gradient(135deg, #0a1a12 0%, #102820 50%, #051510 100%)',
+        previewImage: ASSET_BASE + 'textures/skybox/alien_sky.png',
 
         sky: {
             type: 'equirectangular',
@@ -426,6 +451,17 @@ const SCENE_CONFIGS = {
             fogColor: [0.05, 0.10, 0.08],
             fogDensity: 0.010,
             hasLightning: false,
+            // CREON — the orbital relay looming over the horizon.
+            creon: {
+                textureUrl: 'art/creon-machine-wars.png',
+                tint: [0.7, 1.0, 0.85],
+                opacity: 0.85,
+                size: 206,
+                distance: 300,
+                elevation: 0.44,
+                azimuth: 3,
+                crop: { x: 0.134, y: 0.0, w: 0.417, h: 0.508 },
+            },
         },
 
         lighting: {
@@ -442,10 +478,10 @@ const SCENE_CONFIGS = {
         ground: {
             type: 'texture',
             textureUrl: 'ground/alien_ground.png',
-            width: 200, height: 200, subdivisions: 60,
+            width: 320, height: 320, subdivisions: 90,
             displacementSeed: 202,
             displacementScale: 1.8,
-            flatZoneRadius: 16,
+            flatZoneRadius: 24,
             textureUScale: 8, textureVScale: 8,
             baseColor: 'rgb(20, 35, 28)',
             fallbackColor: [0.08, 0.14, 0.10],
@@ -457,7 +493,7 @@ const SCENE_CONFIGS = {
             slabColor: [0.06, 0.15, 0.10],
         },
 
-        perimeter: { halfW: 50, halfD: 50 },
+        perimeter: { halfW: 80, halfD: 80 },
         gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.10, 0.18, 0.14],
@@ -468,8 +504,8 @@ const SCENE_CONFIGS = {
 
         spawn: {
             arcAngle: Math.PI * 1.2,
-            radiusMin: 22,
-            radiusMax: 32,
+            radiusMin: 34,
+            radiusMax: 52,
             direction: -1,
         },
 
@@ -575,6 +611,7 @@ const SCENE_CONFIGS = {
         name: 'DESERT OUTPOST',
         description: 'Harsh sun, sand terrain, makeshift military camp.',
         previewGradient: 'linear-gradient(135deg, #3a3018 0%, #5a4820 50%, #2a2010 100%)',
+        previewImage: ASSET_BASE + 'textures/skybox/desert_sky.png',
 
         sky: {
             type: 'equirectangular',
@@ -583,6 +620,19 @@ const SCENE_CONFIGS = {
             fogColor: [0.45, 0.38, 0.28],
             fogDensity: 0.004, // low fog = long sightlines
             hasLightning: false,
+            // CREON — the orbital relay looming over the horizon.
+            creon: {
+                textureUrl: 'art/creon-machine-wars.png',
+                tint: [1.0, 0.92, 0.78],
+                opacity: 0.78,
+                size: 213,
+                distance: 300,
+                elevation: 0.3,
+                azimuth: 2.9,
+                gain: 0.75,
+                gamma: 1,
+                crop: { x: 0.134, y: 0.0, w: 0.417, h: 0.508 },
+            },
         },
 
         lighting: {
@@ -599,10 +649,10 @@ const SCENE_CONFIGS = {
         ground: {
             type: 'texture',
             textureUrl: 'ground/desert_ground.png',
-            width: 200, height: 200, subdivisions: 60,
+            width: 320, height: 320, subdivisions: 90,
             displacementSeed: 303,
             displacementScale: 0.8, // flatter terrain
-            flatZoneRadius: 20,
+            flatZoneRadius: 28,
             textureUScale: 10, textureVScale: 10,
             baseColor: 'rgb(160, 130, 80)',
             fallbackColor: [0.6, 0.5, 0.3],
@@ -612,7 +662,7 @@ const SCENE_CONFIGS = {
             slabColor: [0.5, 0.42, 0.28],
         },
 
-        perimeter: { halfW: 55, halfD: 55 },
+        perimeter: { halfW: 88, halfD: 88 },
         gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.5, 0.42, 0.28],
@@ -623,8 +673,8 @@ const SCENE_CONFIGS = {
 
         spawn: {
             arcAngle: Math.PI * 1.2,
-            radiusMin: 28,
-            radiusMax: 40, // longer sightlines = further spawns
+            radiusMin: 42,
+            radiusMax: 62, // longer sightlines = further spawns
             direction: -1,
         },
 
@@ -762,6 +812,7 @@ const SCENE_CONFIGS = {
         name: 'URBAN RUINS',
         description: 'Collapsed city blocks. Robot assault on devastated streets.',
         previewGradient: 'linear-gradient(135deg, #1a1a1a 0%, #2a2218 50%, #0e0e0e 100%)',
+        previewImage: ASSET_BASE + 'textures/skybox/urban_sky.png',
 
         sky: {
             type: 'equirectangular',
@@ -770,6 +821,17 @@ const SCENE_CONFIGS = {
             fogColor: [0.14, 0.13, 0.12],
             fogDensity: 0.009,
             hasLightning: true,
+            // CREON — the orbital relay looming over the horizon.
+            creon: {
+                textureUrl: 'art/creon-machine-wars.png',
+                tint: [0.95, 0.85, 0.8],
+                opacity: 0.86,
+                size: 213,
+                distance: 300,
+                elevation: 0.38,
+                azimuth: 3.3,
+                crop: { x: 0.134, y: 0.0, w: 0.417, h: 0.508 },
+            },
         },
 
         lighting: {
@@ -786,10 +848,10 @@ const SCENE_CONFIGS = {
         ground: {
             type: 'texture',
             textureUrl: 'ground/urban_ground.png',
-            width: 200, height: 200, subdivisions: 80,
+            width: 320, height: 320, subdivisions: 110,
             displacementSeed: 55,
             displacementScale: 1.2,
-            flatZoneRadius: 18,
+            flatZoneRadius: 26,
             textureUScale: 10, textureVScale: 10,
             baseColor: 'rgb(60, 55, 48)',
             fallbackColor: [0.24, 0.22, 0.19],
@@ -802,7 +864,7 @@ const SCENE_CONFIGS = {
             slabColor: [0.30, 0.27, 0.22],
         },
 
-        perimeter: { halfW: 55, halfD: 55 },
+        perimeter: { halfW: 88, halfD: 88 },
         gateDirection: 'south',
         gateHalfWidth: 9,
         wallColor: [0.22, 0.20, 0.17],
@@ -813,8 +875,8 @@ const SCENE_CONFIGS = {
 
         spawn: {
             arcAngle: Math.PI * 1.2,
-            radiusMin: 24,
-            radiusMax: 36,
+            radiusMin: 36,
+            radiusMax: 56,
             direction: -1,
         },
 
@@ -930,6 +992,7 @@ const SCENE_CONFIGS = {
         name: 'JUNGLE OUTPOST',
         description: 'Overgrown military base. Dense fog, ambush terrain.',
         previewGradient: 'linear-gradient(135deg, #0a1a08 0%, #142810 50%, #061206 100%)',
+        previewImage: ASSET_BASE + 'textures/skybox/jungle_sky.png',
 
         sky: {
             type: 'equirectangular',
@@ -938,6 +1001,17 @@ const SCENE_CONFIGS = {
             fogColor: [0.08, 0.12, 0.07],
             fogDensity: 0.014,
             hasLightning: true,
+            // CREON — the orbital relay looming over the horizon.
+            creon: {
+                textureUrl: 'art/creon-machine-wars.png',
+                tint: [0.72, 0.9, 0.72],
+                opacity: 0.82,
+                size: 199,
+                distance: 300,
+                elevation: 0.4,
+                azimuth: 3.15,
+                crop: { x: 0.134, y: 0.0, w: 0.417, h: 0.508 },
+            },
         },
 
         lighting: {
@@ -954,10 +1028,10 @@ const SCENE_CONFIGS = {
         ground: {
             type: 'texture',
             textureUrl: 'ground/jungle_ground.png',
-            width: 200, height: 200, subdivisions: 80,
+            width: 320, height: 320, subdivisions: 110,
             displacementSeed: 66,
             displacementScale: 1.8,
-            flatZoneRadius: 16,
+            flatZoneRadius: 24,
             textureUScale: 8, textureVScale: 8,
             baseColor: 'rgb(38, 52, 28)',
             fallbackColor: [0.15, 0.20, 0.11],
@@ -970,7 +1044,7 @@ const SCENE_CONFIGS = {
             slabColor: [0.22, 0.30, 0.16],
         },
 
-        perimeter: { halfW: 50, halfD: 50 },
+        perimeter: { halfW: 80, halfD: 80 },
         gateDirection: 'south',
         gateHalfWidth: 8,
         wallColor: [0.20, 0.28, 0.14],
@@ -981,8 +1055,8 @@ const SCENE_CONFIGS = {
 
         spawn: {
             arcAngle: Math.PI * 1.3,
-            radiusMin: 20,
-            radiusMax: 32,
+            radiusMin: 32,
+            radiusMax: 52,
             direction: -1,
         },
 
@@ -1087,6 +1161,7 @@ const SCENE_CONFIGS = {
         name: 'ARCTIC BASE',
         description: 'Frozen tundra outpost. Blizzard conditions, icy ground.',
         previewGradient: 'linear-gradient(135deg, #0e1820 0%, #182530 50%, #080e14 100%)',
+        previewImage: ASSET_BASE + 'textures/skybox/arctic_sky.png',
 
         sky: {
             type: 'equirectangular',
@@ -1095,6 +1170,19 @@ const SCENE_CONFIGS = {
             fogColor: [0.55, 0.62, 0.70],
             fogDensity: 0.016,
             hasLightning: false,
+            // CREON — the orbital relay looming over the horizon.
+            creon: {
+                textureUrl: 'art/creon-machine-wars.png',
+                tint: [0.82, 0.88, 1.0],
+                opacity: 0.8,
+                size: 213,
+                distance: 300,
+                elevation: 0.42,
+                azimuth: 3.25,
+                gain: 0.7,
+                gamma: 1,
+                crop: { x: 0.134, y: 0.0, w: 0.417, h: 0.508 },
+            },
         },
 
         lighting: {
@@ -1111,10 +1199,10 @@ const SCENE_CONFIGS = {
         ground: {
             type: 'texture',
             textureUrl: 'ground/arctic_ground.png',
-            width: 200, height: 200, subdivisions: 80,
+            width: 320, height: 320, subdivisions: 110,
             displacementSeed: 77,
             displacementScale: 1.0,
-            flatZoneRadius: 20,
+            flatZoneRadius: 28,
             textureUScale: 10, textureVScale: 10,
             baseColor: 'rgb(210, 220, 232)',
             fallbackColor: [0.82, 0.86, 0.91],
@@ -1127,7 +1215,7 @@ const SCENE_CONFIGS = {
             slabColor: [0.75, 0.80, 0.86],
         },
 
-        perimeter: { halfW: 55, halfD: 55 },
+        perimeter: { halfW: 88, halfD: 88 },
         gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.62, 0.68, 0.74],
@@ -1138,8 +1226,8 @@ const SCENE_CONFIGS = {
 
         spawn: {
             arcAngle: Math.PI * 1.1,
-            radiusMin: 24,
-            radiusMax: 36,
+            radiusMin: 36,
+            radiusMax: 56,
             direction: -1,
         },
 

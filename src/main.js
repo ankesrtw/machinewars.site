@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   AUTONOMOUS WAR V2 — main.js (Three.js game core)
+   MACHINE WARS — main.js (Three.js game core)
    Renderer + post-processing, render loop, state machine, input,
    shooting/raycast, collision, weapons, grenades, pickups, scoring.
    ═══════════════════════════════════════════════════════════════════ */
@@ -86,6 +86,39 @@ function animateLoadingBar(onComplete) {
     }, 80);
 }
 
+// The canvas sits below the fixed header. renderer.setSize() writes inline
+// width/height styles onto the canvas, which override the stylesheet's
+// `calc(100% - 44px)` — so the number used here must match the header's real
+// height or the drawing buffer ends up smaller than the area it covers, leaving
+// dead black bands. Measure the header instead of hardcoding it.
+function viewportSize() {
+    const header = document.querySelector('.aw-header');
+    const top = header ? Math.round(header.getBoundingClientRect().height) : 44;
+    return { w: window.innerWidth, h: Math.max(1, window.innerHeight - top) };
+}
+
+// UnrealBloomPass allocates all of its render targets as HalfFloatType and blurs
+// them with the WebGLRenderTarget default LinearFilter. Linear filtering of a
+// half-float texture is an *optional* WebGL feature (OES_texture_half_float_linear
+// — not implied by WebGL2), and Intel UHD via ANGLE/D3D11 is one of the common
+// configurations that lacks it. Every filtered tap then reads back as zero and the
+// bloom composite renders the whole frame solid black, with no GL error raised.
+// Byte targets are linear-filterable everywhere, so retype the pass rather than
+// dropping the effect: bloom keeps working, only its HDR headroom is reduced.
+function patchBloomForFiltering(ren, pass) {
+    let ok = false;
+    try { ok = !!ren.getContext().getExtension('OES_texture_half_float_linear'); } catch (e) { /* treat as unsupported */ }
+    if (ok) return;
+    const targets = [pass.renderTargetBright, ...(pass.renderTargetsHorizontal || []), ...(pass.renderTargetsVertical || [])];
+    for (const rt of targets) {
+        if (!rt) continue;
+        rt.texture.type = THREE.UnsignedByteType;
+        rt.texture.needsUpdate = true;
+        rt.dispose(); // force reallocation with the new type on next use
+    }
+    console.warn('[MW] half-float linear filtering unavailable — bloom switched to 8-bit targets.');
+}
+
 function pickAutoQuality() {
     const cores = navigator.hardwareConcurrency || 4, dpr = window.devicePixelRatio || 1;
     const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
@@ -110,8 +143,9 @@ function applyQuality(sel) {
         // setPixelRatio() does NOT resize the drawing buffer on its own — must
         // re-call setSize() afterwards, or on HiDPI displays (devicePixelRatio>1)
         // the buffer/viewport mismatch renders a black canvas.
-        renderer.setSize(window.innerWidth, window.innerHeight - 38);
-        if (composer) composer.setSize(window.innerWidth, window.innerHeight - 38);
+        const { w, h } = viewportSize();
+        renderer.setSize(w, h);
+        if (composer) composer.setSize(w, h);
     }
     if (bloomPass) { bloomPass.enabled = p.bloom; if (p.bloomStrength) bloomPass.strength = p.bloomStrength; }
     const q = $('aw-quality'); if (q) q.value = sel;
@@ -122,20 +156,25 @@ function initEngine() {
     canvas = $('aw-canvas');
     const _preserve = new URLSearchParams(location.search).has('preserve');
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: _preserve });
-    renderer.setSize(window.innerWidth, window.innerHeight - 38);
+    const _vp = viewportSize();
+    renderer.setSize(_vp.w, _vp.h);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.3;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / (window.innerHeight - 38), 0.1, 400);
+    camera = new THREE.PerspectiveCamera(70, _vp.w / _vp.h, 0.1, 400);
+
+    const urlScene = detectSceneFromUrl();
+    if (urlScene) AW.currentScene = urlScene;
 
     buildScenePicker();
     const q = $('aw-quality');
     // Allow ?quality=low|medium|high|auto to override (handy for testing / low-end devices).
     const urlQ = new URLSearchParams(location.search).get('quality');
     if (urlQ && q) q.value = urlQ;
+    else if (IS_TOUCH && q) q.value = 'auto'; // phones/tablets default to auto → low
     applyQuality(q ? q.value : 'high');
 
     buildScene(AW.currentScene);
@@ -145,6 +184,11 @@ function initEngine() {
 
     _clock = new THREE.Clock();
     _raycaster = new THREE.Raycaster();
+    // Enemy HP bars are THREE.Sprites, and Sprite.raycast() dereferences
+    // Raycaster.camera. Without this, the first shot fired once a sprite-
+    // bearing enemy (grunt/heavy/drone/boss — anything with hp > 1) is on
+    // screen throws mid-loop and hit detection silently stops working.
+    _raycaster.camera = camera;
     renderer.setAnimationLoop(renderLoop);
 
     $('aw-start-btn').addEventListener('click', startGame);
@@ -156,40 +200,55 @@ function initEngine() {
 }
 
 function onResize() {
-    const w = window.innerWidth, h = window.innerHeight - 38;
+    const { w, h } = viewportSize();
     renderer.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix();
     if (composer) composer.setSize(w, h);
 }
 
-function buildScenePicker() {
-    const picker = $('aw-scene-picker'); if (!picker) return;
-    picker.innerHTML = '';
-    for (const [id, cfg] of Object.entries(SCENE_CONFIGS)) {
-        const card = document.createElement('div');
-        card.className = 'aw-scene-card' + (id === AW.currentScene ? ' selected' : '');
-        card.dataset.sceneId = id;
-        card.style.background = cfg.previewGradient || '#111';
-        card.innerHTML = `<div class="aw-scene-card-name">${cfg.name}</div><div class="aw-scene-card-desc">${cfg.description}</div>`;
-        card.addEventListener('click', () => selectScene(id));
-        picker.appendChild(card);
-    }
+function detectSceneFromUrl() {
+    const segs = (location.pathname || '').split('/').filter(Boolean);
+    const last = segs[segs.length - 1] || '';
+    return (last && SCENE_CONFIGS[last]) ? last : null;
 }
 
-function selectScene(id) {
-    if (id === AW.currentScene) return;
-    document.querySelectorAll('.aw-scene-card').forEach((c) => c.classList.remove('selected'));
-    const sel = document.querySelector(`.aw-scene-card[data-scene-id="${id}"]`);
-    if (sel) sel.classList.add('selected');
-    disposeScene();
-    AW.currentScene = id;
-    buildScene(id);
+function buildScenePicker() {
+    const picker = $('aw-scene-picker'); if (!picker) return;
+    const segs = (location.pathname || '').split('/').filter(Boolean);
+    // Arena pages are siblings; the hub's arena links live below /play/.
+    // Looking at the final segment (not total URL depth) also supports sites
+    // mounted under a project path.
+    const prefix = segs[segs.length - 1] === 'play' ? './' : '../';
+    picker.innerHTML = '';
+    let idx = 0;
+    for (const [id, cfg] of Object.entries(SCENE_CONFIGS)) {
+        idx++;
+        const card = document.createElement('a');
+        card.className = 'aw-scene-card' + (id === AW.currentScene ? ' selected' : '');
+        card.dataset.sceneId = id;
+        card.href = prefix + id + '/';
+        card.setAttribute('aria-label', `Deploy to ${cfg.name}`);
+        const img = cfg.previewImage
+            ? `<span class="aw-scene-card-img" style="background-image:url('${cfg.previewImage}')"></span>`
+            : `<span class="aw-scene-card-img" style="background:${cfg.previewGradient || '#111'}"></span>`;
+        const s = String(idx).padStart(2, '0');
+        card.innerHTML = `
+            ${img}
+            <span class="aw-scene-card-shade"></span>
+            <span class="aw-scene-card-scan"></span>
+            <span class="aw-scene-card-sector">SECTOR ${s}</span>
+            <span class="aw-scene-card-name">${cfg.name}</span>
+            <span class="aw-scene-card-desc">${cfg.description}</span>
+            <span class="aw-scene-card-enter">▶ ENTER</span>
+        `;
+        picker.appendChild(card);
+    }
 }
 
 // ── Scene build / dispose ──────────────────────────────────────────────
 function buildScene(sceneId) {
     const p = QUALITY_PRESETS[AW.quality];
-    world = new World(renderer);
+    world = new World(renderer, camera);
     const cfg = world.build(sceneId, p);
     AW.sceneConfig = cfg; AW.currentScene = cfg.id;
     AW.obstacles = world.obstacles;
@@ -207,12 +266,14 @@ function buildScene(sceneId) {
     // Post-processing
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(world.scene, camera));
-    bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight - 38),
+    const vp = viewportSize();
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(vp.w, vp.h),
         (p.bloomStrength ?? 0.8) * (1 + (cfg.lighting.glowIntensity || 0)), 0.5, 0.85);
     bloomPass.enabled = p.bloom;
+    patchBloomForFiltering(renderer, bloomPass);
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
-    composer.setSize(window.innerWidth, window.innerHeight - 38);
+    composer.setSize(vp.w, vp.h);
 
     // wire enemy context to this scene's objects
     setContext({
@@ -251,7 +312,10 @@ function renderLoop() {
             _lastRadarAt = now;
         }
         HUD.update();
-        if (AW.shooting && WEAPONS[AW.currentWeapon].auto && !AW.reloading) fireWeapon();
+        // Hold-to-fire for every weapon (rate capped per-weapon in fireWeapon).
+        // This makes the touch fire button and mobile play feel smooth, while
+        // desktop mouse clicks still fire one shot per click.
+        if (AW.shooting && !AW.reloading) fireWeapon();
     }
     if (world) world.update(dt, now);
     if (_noFx || !composer) renderer.render(world.scene, camera);
@@ -266,16 +330,24 @@ function updateTransients(dt, now) {
 }
 
 // ── Input ──────────────────────────────────────────────────────────────
+// Capability flags (touch hides pointer-lock-only mouse UI).
+const IS_TOUCH = typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0);
+
 function setupInput() {
     canvas.addEventListener('click', () => {
+        // Pointer lock is desktop-only; on touch devices aiming is handled
+        // by the virtual right-side drag zone.
+        if (IS_TOUCH) return;
         if (AW.state === 'playing' && document.pointerLockElement !== canvas) canvas.requestPointerLock();
     });
     document.addEventListener('pointerlockchange', () => {
         const locked = document.pointerLockElement === canvas;
+        if (!locked) AW.shooting = false; // never leave the trigger held
         const hint = $('aw-click-hint'); if (hint) hint.style.display = locked ? 'none' : '';
     });
 
     document.addEventListener('mousemove', (e) => {
+        if (IS_TOUCH) return;
         if (AW.state !== 'playing' || document.pointerLockElement !== canvas) return;
         _yaw -= e.movementX * _mouseSensitivity;
         _pitch -= e.movementY * _mouseSensitivity;
@@ -289,6 +361,7 @@ function setupInput() {
     });
     document.addEventListener('mouseup', (e) => { if (e.button === 0) AW.shooting = false; });
     document.addEventListener('wheel', (e) => {
+        if (IS_TOUCH) return;
         if (AW.state !== 'playing' || document.pointerLockElement !== canvas) return;
         e.preventDefault();
         switchWeapon((AW.currentWeapon + (e.deltaY > 0 ? 1 : -1) + WEAPONS.length) % WEAPONS.length);
@@ -305,6 +378,8 @@ function setupInput() {
         if (e.code === 'Space') { e.preventDefault(); togglePause(); }
     });
     document.addEventListener('keyup', (e) => { AW.keys[e.code] = false; });
+
+    if (IS_TOUCH) setupTouchControls();
 }
 
 function applyCameraLook() {
@@ -319,21 +394,166 @@ function getForward() {
     return v;
 }
 
+// ── Touch controls (virtual joystick + look-drag + action buttons) ────
+const _touch = {
+    joyId: null, aimId: null, joyOrigin: null, aimLast: null,
+    knob: null, base: null, host: null, aimEl: null, r: 56,
+};
+function setupTouchControls() {
+    const hud = $('hud'); if (!hud) return;
+    // Stop Safari/Android default gestures (scroll, pinch-zoom, long-press).
+    for (const ev of ['touchmove', 'touchstart', 'touchend', 'touchcancel']) {
+        document.addEventListener(ev, onTouch, { passive: false });
+    }
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    const host = document.createElement('div');
+    host.id = 'touch-controls';
+    host.className = 'touch-controls';
+    host.innerHTML = `
+        <div class="tc-zone tc-zone-move" id="tc-zone-move">MOVE<br><svg width="20" height="14" viewBox="0 0 20 14"><path d="M6 12v-8H1l9-4 9 4h-5v8z" fill="currentColor"/></svg></div>
+        <div class="tc-zone tc-zone-aim" id="tc-zone-aim">AIM <br> DRAG</div>
+        <div class="tc-joy" id="tc-joy"><div class="tc-joy-base"><div class="tc-joy-knob" id="tc-joy-knob"></div></div></div>
+        <div class="tc-buttons">
+            <button class="tc-btn tc-btn-grenade" id="tc-grenade" type="button">G</button>
+            <button class="tc-btn tc-btn-reload" id="tc-reload" type="button">R</button>
+        </div>
+        <button class="tc-fire" id="tc-fire" type="button">FIRE</button>
+        <div class="tc-weapons" id="tc-weapons">
+            <button class="tc-wbtn active" data-w="0" type="button">1</button>
+            <button class="tc-wbtn" data-w="1" type="button">2</button>
+            <button class="tc-wbtn" data-w="2" type="button">3</button>
+        </div>
+        <div class="tc-hint">DRAG RIGHT SIDE TO AIM · LEFT JOYSTICK TO MOVE</div>`;
+    hud.appendChild(host);
+    _touch.host = host;
+    _touch.knob = $('tc-joy-knob');
+    _touch.base = $('tc-joy');
+    _touch.aimEl = $('tc-zone-aim');
+
+    const fireBtn = $('tc-fire');
+    const press = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
+    fireBtn.addEventListener('touchstart', press(() => { if (AW.state === 'playing') { AW.shooting = true; fireWeapon(); } }), { passive: false });
+    fireBtn.addEventListener('touchend', press(() => { AW.shooting = false; }), { passive: false });
+    fireBtn.addEventListener('touchcancel', press(() => { AW.shooting = false; }), { passive: false });
+    fireBtn.addEventListener('mousedown', (e) => { e.preventDefault(); AW.shooting = true; if (AW.state === 'playing') fireWeapon(); });
+    document.addEventListener('mouseup', () => { AW.shooting = false; });
+
+    $('tc-reload').addEventListener('touchstart', press(() => { if (!AW.reloading) triggerReload(); }), { passive: false });
+    $('tc-grenade').addEventListener('touchstart', press(() => throwGrenade()), { passive: false });
+    for (const b of host.querySelectorAll('.tc-wbtn')) {
+        b.addEventListener('touchstart', press(() => switchWeapon(+b.dataset.w)), { passive: false });
+    }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { AW.shooting = false; } });
+    updateTouchWeaponUI(0);
+}
+
+function updateTouchWeaponUI(idx) {
+    const host = _touch.host; if (!host) return;
+    for (const b of host.querySelectorAll('.tc-wbtn')) {
+        b.classList.toggle('active', +b.dataset.w === idx);
+    }
+    const f = $('tc-fire');
+    if (f && idx === 1) f.classList.add('shotgun');
+    else if (f) f.classList.remove('shotgun');
+}
+
+// Route raw touches by start position → move joystick, look-drag, or a button.
+function onTouch(e) {
+    if (AW.state !== 'playing') return; // overlays/buttons receive taps normally
+    if (e.cancelable) {
+        // Don't swallow taps aimed at real controls (header buttons, etc.).
+        let overCtl = false;
+        for (const t of e.changedTouches) {
+            const el = document.elementFromPoint(t.clientX, t.clientY);
+            if (el && el.closest && el.closest('button, a, select, input, .aw-overlay')) { overCtl = true; break; }
+        }
+        if (!overCtl) e.preventDefault();
+    }
+    for (const t of e.changedTouches) {
+        const x = t.clientX, y = t.clientY;
+        if (e.type === 'touchstart') {
+            const over = document.elementFromPoint(x, y);
+            if (over && over.closest && over.closest('button, a, select, input, .tc-btn, .tc-wbtn, .tc-fire')) continue; // buttons handle themselves
+            if (_touch.joyId !== null) continue;
+            if (x < window.innerWidth * 0.45) {
+                _touch.joyId = t.identifier;
+                _touch.joyOrigin = { x, y };
+                _touch.base.classList.add('on');
+                _touch.base.style.left = (x - _touch.r) + 'px';
+                _touch.base.style.top = (y - _touch.r) + 'px';
+                _touch.knob.style.transform = 'translate(0px,0px)';
+                setTouchMove(0, 0);
+            } else if (_touch.aimId === null) {
+                _touch.aimId = t.identifier;
+                _touch.aimLast = { x, y };
+            }
+        } else if (e.type === 'touchmove') {
+            if (t.identifier === _touch.joyId && _touch.joyOrigin) {
+                let dx = t.clientX - _touch.joyOrigin.x, dy = t.clientY - _touch.joyOrigin.y;
+                const len = Math.hypot(dx, dy);
+                if (len > _touch.r) { dx = dx / len * _touch.r; dy = dy / len * _touch.r; }
+                _touch.knob.style.transform = `translate(${dx}px,${dy}px)`;
+                // x: +right, y: +up on screen.
+                setTouchMove(dx / _touch.r, -dy / _touch.r);
+            } else if (t.identifier === _touch.aimId && _touch.aimLast) {
+                const dx = t.clientX - _touch.aimLast.x, dy = t.clientY - _touch.aimLast.y;
+                _touch.aimLast = { x: t.clientX, y: t.clientY };
+                const k = (_mouseSensitivity / 0.0018) * 0.0062; // scale with the sensitivity slider
+                _yaw -= dx * k;
+                _pitch -= dy * k;
+                _pitch = Math.max(-0.61, Math.min(0.70, _pitch));
+                applyCameraLook();
+            }
+        } else { // end / cancel
+            if (t.identifier === _touch.joyId) {
+                _touch.joyId = null; _touch.joyOrigin = null;
+                _touch.base.classList.remove('on'); _touch.knob.style.transform = 'translate(0px,0px)';
+                setTouchMove(0, 0);
+            }
+            if (t.identifier === _touch.aimId) { _touch.aimId = null; _touch.aimLast = null; }
+        }
+    }
+}
+
+export function setTouchMoveEnabled(enabled) {
+    _touch.host && _touch.host.classList.toggle('disabled', !enabled);
+}
+
+
 // ── Movement ───────────────────────────────────────────────────────────
+// Touch joystick state: {x,y} in [-1,1] (x = right, y = up on screen).
+let _touchMove = null;
+export function setTouchMove(x, y) {
+    _touchMove = (x === 0 && y === 0) ? null : { x, y };
+}
+
 function updatePlayerMovement(dt) {
     const keys = AW.keys, speed = AW.moveSpeed * dt;
+    const up = new THREE.Vector3(0, 1, 0);
     const fwd = getForward(); fwd.y = 0; fwd.normalize();
-    const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), fwd).normalize();
+    // Right vector: cross(fwd, up) — the previous code used cross(up, fwd),
+    // which is the LEFT vector, so A/D strafed in reverse.
+    const right = new THREE.Vector3().crossVectors(fwd, up).normalize();
+
+    let mx = 0, mz = 0;
+    if (keys['KeyW'] || keys['ArrowUp']) { mx += fwd.x; mz += fwd.z; }
+    if (keys['KeyS'] || keys['ArrowDown']) { mx -= fwd.x * 0.7; mz -= fwd.z * 0.7; }
+    if (keys['KeyA'] || keys['ArrowLeft']) { mx -= right.x * 0.8; mz -= right.z * 0.8; }
+    if (keys['KeyD'] || keys['ArrowRight']) { mx += right.x * 0.8; mz += right.z * 0.8; }
+    if (_touchMove) {
+        mx += right.x * _touchMove.x + fwd.x * _touchMove.y;
+        mz += right.z * _touchMove.x + fwd.z * _touchMove.y;
+    }
+    // Normalize diagonals so moving every direction is equally fast.
+    const len = Math.hypot(mx, mz);
+    if (len > 1) { mx /= len; mz /= len; }
+
     const oldX = camera.position.x, oldZ = camera.position.z;
-    let nx = oldX, nz = oldZ;
-    if (keys['KeyW'] || keys['ArrowUp']) { nx += fwd.x * speed; nz += fwd.z * speed; }
-    if (keys['KeyS'] || keys['ArrowDown']) { nx -= fwd.x * speed * 0.7; nz -= fwd.z * speed * 0.7; }
-    if (keys['KeyA'] || keys['ArrowLeft']) { nx -= right.x * speed * 0.8; nz -= right.z * speed * 0.8; }
-    if (keys['KeyD'] || keys['ArrowRight']) { nx += right.x * speed * 0.8; nz += right.z * speed * 0.8; }
-    const r = 0.5;
-    if (!checkCollision(nx, nz, r)) { camera.position.x = nx; camera.position.z = nz; }
-    else if (!checkCollision(nx, oldZ, r)) camera.position.x = nx;
-    else if (!checkCollision(oldX, nz, r)) camera.position.z = nz;
+    let nx = oldX + mx * speed, nz = oldZ + mz * speed;
+    if (!checkCollision(nx, nz, 0.5)) { camera.position.x = nx; camera.position.z = nz; }
+    else if (!checkCollision(nx, oldZ, 0.5)) camera.position.x = nx;
+    else if (!checkCollision(oldX, nz, 0.5)) camera.position.z = nz;
     camera.position.y = _baseCamY - _reloadDip; // shake adds on top in applyShake
 }
 
@@ -355,6 +575,7 @@ function switchWeapon(idx) {
     const w = WEAPONS[idx];
     AW.ammo = w.ammo; AW.maxAmmo = w.ammo; AW.reloading = false;
     HUD.showWeaponSwitch(w.name); HUD.update(); Audio.playReload();
+    updateTouchWeaponUI(idx);
 }
 
 function fireWeapon() {
@@ -378,7 +599,7 @@ function fireWeapon() {
             dir.z += (Math.random() - 0.5) * w.spread;
             dir.normalize();
         }
-        _raycaster.set(origin, dir); _raycaster.far = 200;
+        _raycaster.set(origin, dir); _raycaster.far = 320;
         const hits = _raycaster.intersectObjects(world.scene.children, true);
         for (const hit of hits) {
             const meta = findMeta(hit.object);
@@ -479,8 +700,18 @@ function explodeBarrel(bd) {
     }
     const pd = Math.hypot(camera.position.x - bd.x, camera.position.z - bd.z);
     if (pd < 8) onPlayerDamage(Math.ceil(20 * (1 - pd / 8)));
+    // Detach only — the geometry/material are reused when restartGame()
+    // restores the arena. World.dispose() still frees them on scene teardown.
     world.scene.remove(bd.mesh); world.scene.remove(bd.stripe);
-    bd.mesh.geometry.dispose(); bd.stripe.geometry.dispose();
+}
+
+// Put every exploded barrel back so a restart replays the same arena.
+function resetExplosiveBarrels() {
+    for (const bd of AW.explosiveBarrels) {
+        if (!bd.exploded) continue;
+        bd.exploded = false; bd.mesh.userData.exploded = false;
+        world.scene.add(bd.mesh); world.scene.add(bd.stripe);
+    }
 }
 
 // ── Enemy tracer ───────────────────────────────────────────────────────
@@ -539,8 +770,12 @@ function spawnPickups() {
     if (AW.playerHP >= AW.maxPlayerHP) types.shift();
     for (const type of types) {
         const angle = (Math.random() - 0.5) * Math.PI, dist = 8 + Math.random() * 10;
-        const cx = Math.max(-55, Math.min(55, camera.position.x + Math.sin(angle) * dist));
-        const cz = Math.max(-55, Math.min(55, camera.position.z - Math.abs(Math.cos(angle)) * dist));
+        // Clamp to the actual arena, not a hardcoded 55 — the perimeter is
+        // per-scene and pickups used to strand outside the smaller arenas.
+        const perim = AW.sceneConfig ? AW.sceneConfig.perimeter : { halfW: 55, halfD: 55 };
+        const lx = perim.halfW - 3, lz = perim.halfD - 3;
+        const cx = Math.max(-lx, Math.min(lx, camera.position.x + Math.sin(angle) * dist));
+        const cz = Math.max(-lz, Math.min(lz, camera.position.z - Math.abs(Math.cos(angle)) * dist));
         const size = 0.6;
         const mat = new THREE.MeshStandardMaterial(type === 'health'
             ? { color: new THREE.Color(0.1, 0.6, 0.2), emissive: new THREE.Color(0.05, 0.3, 0.1) }
@@ -662,25 +897,32 @@ function resetWaveStats() {
 
 function startGame() {
     canvas.focus();
-    const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {});
+    if (!IS_TOUCH) { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); }
     $('aw-start').classList.add('hidden');
     resetState();
     Audio.init(); Audio.resume(); Audio.startAmbient(); Audio.startMusic();
     resetWaveStats(); WaveManager.startWave(AW.wave); HUD.update();
-    setTimeout(() => { if (document.pointerLockElement !== canvas && AW.state === 'playing') { const h = $('aw-click-hint'); if (h) h.style.display = 'block'; } }, 800);
+    updateMobileHints();
+    setTimeout(() => { if (!IS_TOUCH && document.pointerLockElement !== canvas && AW.state === 'playing') { const h = $('aw-click-hint'); if (h) h.style.display = 'block'; } }, 800);
 }
 
 function restartGame() {
-    canvas.focus(); canvas.requestPointerLock();
+    canvas.focus(); if (!IS_TOUCH) canvas.requestPointerLock();
     $('aw-gameover').classList.add('hidden'); $('aw-win').classList.add('hidden');
     WaveManager.reset();
     resetState();
     AW.grenades = AW.maxGrenades;
-    for (const p of _activePickups) { world.scene.remove(p.mesh); }
+    for (const p of _activePickups) {
+        p.alive = false;
+        world.scene.remove(p.mesh);
+        p.mesh.geometry.dispose(); p.mesh.material.dispose();
+    }
     _activePickups.length = 0; _transients.length = 0;
+    resetExplosiveBarrels();
     _lowHpActive = false; _heartbeatPhase = 0; _killStreakCount = 0; _killStreakTimer = 0;
     Audio.resume(); Audio.startAmbient(); Audio.startMusic();
     resetWaveStats(); WaveManager.startWave(AW.wave); HUD.update();
+    updateMobileHints();
 }
 
 function resetState() {
@@ -715,8 +957,9 @@ function togglePause() {
     if (AW.state !== 'playing') return;
     _paused = !_paused;
     $('aw-pause-btn').textContent = _paused ? 'RESUME' : 'PAUSE';
-    if (_paused) { AW.shooting = false; document.exitPointerLock(); }
-    else canvas.requestPointerLock();
+    if (_paused) { AW.shooting = false; if (!IS_TOUCH) document.exitPointerLock(); }
+    else if (!IS_TOUCH) canvas.requestPointerLock();
+    updateMobileHints();
 }
 function toggleMute() {
     const muted = Audio.toggleMute();
@@ -725,8 +968,15 @@ function toggleMute() {
 function toggleSettings() {
     _settingsOpen = !_settingsOpen;
     const panel = $('aw-settings');
-    if (_settingsOpen) { panel.classList.remove('hidden'); if (AW.state === 'playing') { AW.shooting = false; document.exitPointerLock(); } }
-    else { panel.classList.add('hidden'); if (AW.state === 'playing') canvas.requestPointerLock(); }
+    if (_settingsOpen) { panel.classList.remove('hidden'); if (AW.state === 'playing') { AW.shooting = false; if (!IS_TOUCH) document.exitPointerLock(); } }
+    else { panel.classList.add('hidden'); if (AW.state === 'playing' && !IS_TOUCH) canvas.requestPointerLock(); }
+}
+
+function updateMobileHints() {
+    if (IS_TOUCH) {
+        const hint = $('aw-click-hint'); if (hint) hint.style.display = 'none';
+        setTouchMoveEnabled(AW.state === 'playing' && !_paused && !_settingsOpen);
+    }
 }
 
 function initSettings() {
@@ -749,4 +999,12 @@ window.toggleSettings = toggleSettings;
 // Named AWAudio (not Audio) to avoid clobbering the native window.Audio constructor.
 window.AWAudio = Audio;
 // Debug/diagnostics surface (used by smoke tests; harmless in prod).
-window.AWDebug = { AW, WaveManager, get enemies() { return WaveManager.activeEnemies.length; } };
+window.AWDebug = {
+    AW, WaveManager,
+    get enemies() { return WaveManager.activeEnemies.length; },
+    get renderer() { return renderer; },
+    get composer() { return composer; },
+    get camera() { return camera; },
+    get world() { return world; },
+    get scene() { return world ? world.scene : null; },
+};

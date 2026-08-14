@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="icon" type="image/svg+xml" href="../../assets/icon.svg">
+    <meta name="description" content="MACHINE WARS — Humans and the Grid, Everywhere. Three.js wave-survival shooter. Abandoned colony on the red planet. Dust storms, low visibility.">
+    <title>MACHINE WARS // MARS — Humans and the Grid, Everywhere</title>
+    <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="aw-header">
+        <div class="aw-header-left">
+            <img class="aw-header-logo" src="../../assets/logo-v2.svg" alt="MACHINE WARS">
+            <span class="aw-header-title">MACHINE WARS</span>
+            <span class="aw-header-badge">V1</span>
+            <span class="aw-header-engine">THREE.JS</span>
+        </div>
+        <div class="aw-header-right">
+            <span class="aw-header-status"><i class="aw-blink"></i>GRID ONLINE</span>
+            <button class="aw-btn" id="aw-mute-btn" onclick="toggleMute()">MUTE</button>
+            <button class="aw-btn" id="aw-pause-btn" onclick="togglePause()">PAUSE</button>
+            <button class="aw-btn" onclick="toggleSettings()">SETTINGS</button>
+            <button class="aw-btn" onclick="window.location.href='./'">ALL SCENES</button>
+        </div>
+    </header>
+
+    <!-- VFX overlays -->
+    <div class="aw-vignette" aria-hidden="true"></div>
+    <div class="aw-scanlines" aria-hidden="true"></div>
+    <div id="aw-click-hint">CLICK GAME SCREEN TO AIM</div>
+    <div id="hud-damage-flash" aria-hidden="true"></div>
+    <div id="hud-muzzle" aria-hidden="true"></div>
+
+    <!-- Canvas -->
+    <canvas id="aw-canvas" tabindex="0"></canvas>
+
+    <!-- HUD (DOM) -->
+    <div id="hud" aria-hidden="true">
+        <div id="hud-reticle">
+            <div class="ring"></div><div class="dot"></div>
+            <div class="tick t"></div><div class="tick b"></div><div class="tick l"></div><div class="tick r"></div>
+        </div>
+        <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+        <div id="hud-score">0 PTS</div>
+        <div id="hud-wave">WAVE 1 / 10</div>
+        <div id="hud-kills">0 KILLS</div>
+        <div id="hud-hp-wrap">
+            <div id="hud-hp-label">HULL INTEGRITY</div>
+            <div id="hud-hp-track"><div id="hud-hp-fill"></div></div>
+            <div id="hud-hp-val">100</div>
+        </div>
+        <div id="hud-ammo-wrap">
+            <div id="hud-reload">[ RELOADING.. ]</div>
+            <div id="hud-weapon">[ 1 ] RIFLE  |  G: 3 GRENADES</div>
+            <div id="hud-ammo">30 / 30</div>
+            <div id="hud-ammo-label">ROUNDS</div>
+        </div>
+        <div id="hud-banner"></div>
+        <div id="hud-combo"></div>
+        <canvas id="hud-radar" width="120" height="120"></canvas>
+        <div id="hud-damage-dir">
+            <svg viewBox="0 0 40 40" width="40" height="40"><polygon points="20,5 30,35 20,28 10,35" fill="rgba(255,0,0,0.8)"/></svg>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="aw-loading">
+        <div class="aw-loading-mark">▦</div>
+        <div class="aw-loading-title">MACHINE WARS // V1</div>
+        <div class="aw-loading-sub">INITIALIZING THREE.JS COMBAT SYSTEMS</div>
+        <div class="aw-loading-bar-wrap"><div class="aw-loading-bar-fill" id="aw-loading-fill"></div></div>
+        <div class="aw-loading-hint">LOADING PBR ENVIRONMENT..</div>
+    </div>
+
+    <!-- Start -->
+    <div class="aw-overlay" id="aw-start">
+        <div class="aw-console">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+
+            <p class="aw-kicker">/// DEPLOYMENT TERMINAL — 2087.07.04</p>
+
+            <div class="aw-title-wrap">
+                <div class="aw-overlay-title blue">MACHINE WARS</div>
+                <div class="aw-title-glitch" aria-hidden="true" data-text="MACHINE WARS"></div>
+                <p class="aw-tagline">HUMANS AND THE GRID, EVERYWHERE</p>
+            </div>
+
+            <div class="aw-overlay-sub">
+                ARENA — MARS<br>
+                Abandoned colony on the red planet. Dust storms, low visibility.
+            </div>
+
+            <div class="aw-status-row">
+                <span class="aw-blink"></span> SYSTEMS ONLINE · 7 SECTORS · 3 WEAPONS · 10 WAVES
+            </div>
+
+            <div class="aw-scene-picker-label">SWITCH ARENA //</div>
+            <div class="aw-scene-picker" id="aw-scene-picker"></div>
+
+            <div class="aw-controls-hint">
+                <span><b>W A S D</b> MOVE</span><span><b>MOUSE</b> AIM</span><span><b>CLICK</b> FIRE</span><span><b>R</b> RELOAD</span><span><b>G</b> GRENADE</span><span><b>1/2/3</b> WEAPONS</span><span><b>SCROLL</b> SWITCH</span>
+            </div>
+
+            <button class="aw-play-btn" id="aw-start-btn">▶ ENGAGE</button>
+        </div>
+    </div>
+
+    <!-- Game over -->
+    <div class="aw-overlay hidden" id="aw-gameover">
+        <div class="aw-console">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+            <div class="aw-overlay-title red">BASE BREACHED</div>
+            <div class="aw-overlay-sub">YOUR POSITION HAS BEEN OVERRUN</div>
+            <div class="aw-overlay-score" id="aw-go-score">WAVE 1 — 0 KILLS</div>
+            <button class="aw-play-btn" id="aw-restart-btn">▶ REDEPLOY</button>
+        </div>
+    </div>
+
+    <!-- Win -->
+    <div class="aw-overlay hidden" id="aw-win">
+        <div class="aw-console">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+            <div class="aw-overlay-title green">THREAT NEUTRALISED</div>
+            <div class="aw-overlay-sub">ALL AUTONOMOUS UNITS DESTROYED<br>BASE DEFENDED</div>
+            <div class="aw-overlay-score" id="aw-win-score">10 WAVES — 0 KILLS</div>
+            <button class="aw-play-btn" id="aw-win-restart-btn">▶ NEW DEPLOYMENT</button>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="aw-overlay hidden" id="aw-settings">
+        <div class="aw-console aw-console-settings">
+            <div class="aw-console-corner tl"></div>
+            <div class="aw-console-corner tr"></div>
+            <div class="aw-console-corner bl"></div>
+            <div class="aw-console-corner br"></div>
+            <div class="aw-overlay-title white" style="font-size:24px">SETTINGS</div>
+            <div class="aw-settings-grid">
+                <label>MASTER VOLUME</label><input type="range" id="aw-vol-master" min="0" max="100" value="70">
+                <label>SFX VOLUME</label><input type="range" id="aw-vol-sfx" min="0" max="100" value="80">
+                <label>MUSIC VOLUME</label><input type="range" id="aw-vol-music" min="0" max="100" value="50">
+                <label>MOUSE SENSITIVITY</label><input type="range" id="aw-sensitivity" min="1" max="100" value="36">
+                <label>FOG DENSITY</label><input type="range" id="aw-fog" min="0" max="100" value="40">
+                <label>QUALITY PRESET</label>
+                <select id="aw-quality">
+                    <option value="auto">AUTO</option>
+                    <option value="low">LOW</option>
+                    <option value="medium">MEDIUM</option>
+                    <option value="high" selected>HIGH</option>
+                </select>
+            </div>
+            <button class="aw-play-btn" id="aw-settings-close" style="margin-top:20px">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Three.js self-hosted ES modules via importmap (no build step, no CDN) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "../../vendor/three/three.module.js",
+            "three/addons/": "../../vendor/three/addons/"
+        }
+    }
+    </script>
+    <script type="module" src="../../src/main.js"></script>
+
+</body>
+</html>

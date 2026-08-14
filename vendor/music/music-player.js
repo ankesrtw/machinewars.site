@@ -1,5 +1,5 @@
 /**
- * MarsMusic — Global persistent mini-player
+ * MachineWarsMusic — Global persistent mini-player
  * Loaded on every page. Saves/restores state via localStorage.
  *
  * UI: permanent SVG indicator (bottom-right) + slide-up bar on click.
@@ -222,15 +222,15 @@
         var controls = _el('div', 'music-mini-player__controls');
 
         var prevBtn = _el('button', 'music-mini-player__btn', { title: 'Previous', text: '\u23EE' });
-        prevBtn.addEventListener('click', function () { window.MarsMusic.prev(); });
+        prevBtn.addEventListener('click', function () { window.MachineWarsMusic.prev(); });
         controls.appendChild(prevBtn);
 
         els.playBtn = _el('button', 'music-mini-player__btn music-mini-player__btn--play', { title: 'Play/Pause', text: '\u25B6' });
-        els.playBtn.addEventListener('click', function () { window.MarsMusic.toggle(); });
+        els.playBtn.addEventListener('click', function () { window.MachineWarsMusic.toggle(); });
         controls.appendChild(els.playBtn);
 
         var nextBtn = _el('button', 'music-mini-player__btn', { title: 'Next', text: '\u23ED' });
-        nextBtn.addEventListener('click', function () { window.MarsMusic.next(); });
+        nextBtn.addEventListener('click', function () { window.MachineWarsMusic.next(); });
         controls.appendChild(nextBtn);
 
         bar.appendChild(controls);
@@ -382,7 +382,7 @@
 
     // ── Public API ───────────────────────────────────────────────────────────
 
-    window.MarsMusic = {
+    window.MachineWarsMusic = {
         play: function (track) {
             if (!track) return;
             _loadTrack(track, true);
@@ -481,7 +481,7 @@
         });
 
         // Always pre-fetch default tracks so queue is fresh
-        window.MarsMusic.loadDefaults(false, true);
+        window.MachineWarsMusic.loadDefaults(false, true);
 
         if (state.track && state.track.url) {
             audio.src = state.track.url;
@@ -521,7 +521,7 @@
                     _save();
                     _notify();
                 } else {
-                    window.MarsMusic.loadDefaults(true, true);
+                    window.MachineWarsMusic.loadDefaults(true, true);
                 }
             };
             document.addEventListener('click', _autoplayOnce);

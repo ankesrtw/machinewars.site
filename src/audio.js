@@ -1,7 +1,7 @@
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════════════
-   AUTONOMOUS WAR — audio.js
+   MACHINE WARS — audio.js
    Web Audio API sound system: procedural SFX, ambient drone, music
 
    WHY PROCEDURAL AUDIO?

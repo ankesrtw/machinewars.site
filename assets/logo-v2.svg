@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" width="420" height="96">
+  <!-- MACHINE WARS logotype: hex-target monogram + wordmark -->
+  <g fill="none" stroke="#00ff88">
+    <polygon points="28,8 50,20 50,44 28,56 6,44 6,20" stroke-width="2"/>
+    <polygon points="28,14 45,23 45,41 28,50 11,41 11,23" stroke-width="1" opacity="0.45"/>
+    <line x1="28" y1="8" x2="28" y2="19" stroke-width="2"/>
+    <line x1="6" y1="20" x2="17" y2="26" stroke-width="2"/>
+  </g>
+  <path d="M21 27 L35 27 L24 44 L38 44" stroke="#00ff88" stroke-width="3.5" fill="none" stroke-linejoin="round"/>
+  <rect x="20" y="41" width="8" height="2.5" fill="#00ff88"/>
+  <g fill="#e8e8e8">
+    <circle cx="28" cy="32" r="2" fill="#00ff88"/>
+    <text x="66" y="42" font-family="'Courier New', Courier, monospace" font-size="34" font-weight="bold" letter-spacing="6" fill="#e8e8e8">MACHINE WARS</text>
+    <text x="66" y="62" font-family="'Courier New', Courier, monospace" font-size="8.5" letter-spacing="3.4" fill="#00ff88" opacity="0.8">HUMANS AND THE GRID, EVERYWHERE</text>
+  </g>
+</svg>

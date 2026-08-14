@@ -1,29 +1,161 @@
 /* ═══════════════════════════════════════════════════════════════════
-   AUTONOMOUS WAR V2 — scenes.js (environment builder, Three.js + PBR)
+   MACHINE WARS — scenes.js (environment builder, Three.js + PBR)
    Consumes SCENE_CONFIGS data and builds the 3D world. Ported from the
    Babylon buildScene()/buildGround()/buildPerimeterWalls()/... family.
    ═══════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { dracoLoader } from './gltf.js';
-import { SCENE_CONFIGS, DEFAULT_SCENE, SCENE_MODEL_BASE, SCENE_TEXTURE_BASE } from './scenes-data.js';
+import { loadGLB } from './gltf.js';
+import { SCENE_CONFIGS, DEFAULT_SCENE, SCENE_MODEL_BASE, SCENE_TEXTURE_BASE, ASSET_BASE } from './scenes-data.js';
 import {
     seededRandom, proceduralGroundTexture, proceduralSkyTexture,
-    fireTexture, smokeTexture, ParticlePool, ContinuousEmitter,
+    fireTexture, smokeTexture, ParticlePool, ContinuousEmitter, creonFaceTexture,
+    concreteTexture,
 } from './fx.js';
 
 export { SCENE_CONFIGS, DEFAULT_SCENE };
 
-const _gltfLoader = new GLTFLoader().setDRACOLoader(dracoLoader);
 const _texLoader = new THREE.TextureLoader();
+
+// Scale a BoxGeometry's UVs by each face's world size so a tiling texture keeps
+// an even texel density regardless of how large the box is. Without this a big
+// slab and a small one show wildly different grain from the same map.
+function scaleBoxUVs(geo, w, h, d, density = 0.35) {
+    const uv = geo.attributes.uv;
+    const spans = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]]; // +X,-X,+Y,-Y,+Z,-Z
+    for (let f = 0; f < 6; f++) {
+        const [su, sv] = spans[f];
+        for (let i = f * 4; i < f * 4 + 4; i++) {
+            uv.setXY(i, uv.getX(i) * su * density, uv.getY(i) * sv * density);
+        }
+    }
+    uv.needsUpdate = true;
+    return geo;
+}
 const _glbCache = {}; // file -> gltf scene (cloned per placement)
+const _fallbackCache = {}; // name -> procedural template Group (cloned per placement)
+// Geometry owned by the caches above. Clones share it by reference, so it must
+// survive World.dispose() — see the note there.
+const _templateGeos = new Set();
+function registerTemplate(root) {
+    root.traverse((o) => { if (o.isMesh && o.geometry) _templateGeos.add(o.geometry); });
+    return root;
+}
+
+function _fbBox(w, h, d, x, y, z, m, rx = 0, ry = 0, rz = 0) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    mesh.position.set(x, y, z);
+    mesh.rotation.set(rx, ry, rz);
+    return mesh;
+}
+function _fbCyl(rTop, rBot, h, x, y, z, m, rx = 0, ry = 0, rz = 0, seg = 8) {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, seg), m);
+    mesh.position.set(x, y, z);
+    mesh.rotation.set(rx, ry, rz);
+    return mesh;
+}
+
+// ── Procedural GLB fallbacks ────────────────────────────────────────
+// If a scene GLB fails to load (offline, Draco down, 404) we build a
+// low-poly silhouette of the same profile from the asset's tint/scale
+// data, so the arena never looks empty. Templates are cached per name
+// and deep-cloned per placement (each clone owns its geometry, so the
+// normal dispose() path stays safe).
+function _buildFallbackTemplate(name, tint) {
+    const mat = new THREE.MeshStandardMaterial({ color: col3(tint.d), emissive: col3(tint.e || [0, 0, 0]), roughness: 0.85, metalness: 0.1 });
+    const dark = new THREE.MeshStandardMaterial({ color: col3(tint.d).multiplyScalar(0.55), roughness: 0.9, metalness: 0.05 });
+    const glow = new THREE.MeshStandardMaterial({ color: col3(tint.e || [0.05, 0.05, 0.05]), emissive: col3(tint.e || [0.05, 0.05, 0.05]), emissiveIntensity: 0.6 });
+
+    // All silhouettes are authored ~1 unit; the caller scales by ac.scale.
+    const root = new THREE.Group();
+
+    if (name === 'factory_ruin' || name === 'warehouse_ruin') {
+        const w = name === 'warehouse_ruin' ? 1.5 : 1.2, h = 0.75, d = 1.0;
+        root.add(_fbBox(w, 0.5, d, 0, 0.25, 0, dark));
+        root.add(_fbBox(w * 0.55, h, d * 0.55, -w * 0.22, 0.28 + h / 2, d * 0.18, mat));
+        root.add(_fbBox(w * 0.5, h * 0.8, d * 0.5, w * 0.25, 0.2 + h * 0.4, -d * 0.2, mat));
+        root.add(_fbBox(w * 0.9, 0.08, d * 1.02, 0, 0.62, 0, mat, 0, 0, 0.12)); // fallen girder
+        for (const side of [-1, 1]) {
+            root.add(_fbBox(0.06, h * 1.1, 0.06, side * (w / 2 - 0.03), h * 0.55, side * (d / 2 - 0.03), dark));
+            root.add(_fbBox(0.06, h * 1.1, 0.06, side * (w / 2 - 0.03), h * 0.55, -side * (d / 2 - 0.03), dark));
+        }
+    } else if (name === 'factory_chimney') {
+        root.add(_fbCyl(0.1, 0.1, 1.0, 0, 0.5, 0, mat));
+        root.add(_fbCyl(0.18, 0.22, 0.1, 0, 0.05, 0, dark));
+        root.add(_fbCyl(0.06, 0.06, 0.06, 0, 1.02, 0, glow));
+        root.add(_fbBox(0.3, 0.08, 0.3, 0, 1.05, 0, dark)); // cap
+    } else if (name === 'guard_tower') {
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+            root.add(_fbCyl(0.035, 0.05, 0.62, sx * 0.28, 0.31, sz * 0.28, dark));
+        }
+        root.add(_fbBox(0.72, 0.07, 0.72, 0, 0.64, 0, mat));
+        root.add(_fbBox(0.3, 0.4, 0.3, 0, 0.88, 0, dark)); // cabin
+        root.add(_fbBox(0.8, 0.06, 0.8, 0, 1.1, 0, mat));  // roof
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+            root.add(_fbBox(0.05, 0.12, 0.05, sx * 0.36, 1.18, sz * 0.36, dark));
+        }
+    } else if (name === 'wall_segment') {
+        root.add(_fbBox(1.0, 0.34, 0.09, 0, 0.17, 0, mat));
+        root.add(_fbBox(0.16, 0.12, 0.11, -0.35, 0.4, 0, dark));
+        root.add(_fbBox(0.16, 0.12, 0.11, 0.35, 0.4, 0, dark));
+        root.add(_fbBox(0.18, 0.04, 0.1, 0, 0.42, 0, glow)); // scorch line
+    } else if (name === 'burned_car' || name === 'burned_truck' || name === 'destroyed_apc') {
+        const truck = name === 'burned_truck', apc = name === 'destroyed_apc';
+        const L = truck ? 1.0 : apc ? 0.7 : 0.55, W = 0.32, H = 0.2;
+        root.add(_fbBox(L, H, W, 0, 0.14, 0, dark));
+        if (truck) {
+            root.add(_fbBox(0.32, 0.2, W * 0.9, 0.3, 0.34, 0, mat)); // cab
+            root.add(_fbBox(L * 0.55, 0.08, W * 0.7, -0.05, 0.4, 0.06, mat, 0, 0, 0.1)); // load bed
+        } else {
+            root.add(_fbBox(L * 0.5, 0.16, W * 0.85, apc ? 0 : 0.12, apc ? 0.38 : 0.3, 0, mat)); // cabin/turret
+            if (apc) root.add(_fbCyl(0.05, 0.05, 0.3, 0, 0.48, 0.14, glow, Math.PI / 2));
+        }
+        for (const sx of [-1, 1]) {
+            if (truck) {
+                for (const ax of [-0.3, 0, 0.3]) root.add(_fbCyl(0.07, 0.07, 0.07, ax, 0.07, sx * (W / 2), dark, 0, 0, Math.PI / 2, 10));
+            } else {
+                const cx = apc ? 0 : 0.12;
+                root.add(_fbCyl(0.08, 0.08, 0.08, cx - L * 0.25, 0.07, sx * (W / 2), dark, 0, 0, Math.PI / 2, 10));
+                root.add(_fbCyl(0.08, 0.08, 0.08, cx + L * 0.25, 0.07, sx * (W / 2), dark, 0, 0, Math.PI / 2, 10));
+            }
+        }
+        if (!truck) root.add(_fbBox(L * 0.8, 0.05, W * 1.1, 0, 0.03, 0, dark)); // chassis
+    } else if (name === 'rubble_pile') {
+        const r0 = 0.22, r1 = 0.14;
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2, rr = r0 + (i % 3) * 0.12;
+            root.add(_fbBox(rr, rr * (0.6 + (i % 2) * 0.3), rr * 0.8,
+                Math.cos(a) * 0.22, rr * 0.28, Math.sin(a) * 0.22, i % 2 ? mat : dark, 0.4, a, 0.2));
+        }
+        root.add(_fbBox(0.14, 0.2, 0.14, 0, 0.22, 0, mat, 0.5, 0.4, 0.2));
+    } else if (name === 'rusted_beam') {
+        root.add(_fbBox(1.4, 0.05, 0.06, 0, 0.05, 0, mat, 0, 0.2, 0.08));
+        root.add(_fbBox(0.16, 0.16, 0.16, 0.55, 0.05, 0.02, dark, 0, 0.3, 0.4));
+        root.add(_fbBox(0.04, 0.09, 0.04, -0.55, 0.09, 0, dark, 0.2, 0, 0.1));
+    } else if (name === 'barricade') {
+        root.add(_fbBox(0.8, 0.24, 0.1, 0, 0.18, 0, mat, 0, 0.15, 0.06));
+        root.add(_fbBox(0.8, 0.1, 0.08, 0, 0.48, 0, dark, 0, -0.1, -0.08));
+        for (const s of [-0.3, 0.3]) {
+            root.add(_fbBox(0.08, 0.6, 0.06, s, 0.34, 0, dark, 0, 0.5, 0.2));
+            root.add(_fbBox(0.08, 0.6, 0.06, -s, 0.34, 0, dark, 0, -0.5, -0.2));
+        }
+    } else {
+        // Generic debris mound
+        root.add(_fbBox(0.6, 0.3, 0.5, 0, 0.15, 0, mat));
+        root.add(_fbBox(0.35, 0.22, 0.35, 0.15, 0.32, 0.1, dark));
+        root.add(_fbBox(0.2, 0.16, 0.2, -0.18, 0.42, -0.1, mat, 0.3, 0, 0.15));
+    }
+
+    root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    return root;
+}
 
 function col3(a) { return new THREE.Color(a[0], a[1], a[2]); }
 
 /* The World holds everything built for the active scene + per-frame updaters. */
 export class World {
-    constructor(renderer) {
+    constructor(renderer, camera) {
         this.renderer = renderer;
+        this.camera = camera || null; // needed by camera-locked sky elements (CREON)
         this.scene = new THREE.Scene();
         this.updaters = [];        // [{update(dt, now)}]
         this.obstacles = [];       // {x,z,hw,hd}
@@ -33,9 +165,12 @@ export class World {
         this.sun = null;
         this.cfg = null;
         this._disposables = [];
+        this._ownMaterials = [];
     }
 
     _track(obj) { this._disposables.push(obj); return obj; }
+
+    _trackMaterial(m) { this._ownMaterials.push(m); return m; }
 
     build(sceneId, quality) {
         const cfg = SCENE_CONFIGS[sceneId] || SCENE_CONFIGS[DEFAULT_SCENE];
@@ -55,34 +190,58 @@ export class World {
         this._buildLighting(cfg, quality);
         this._buildGround(cfg);
         this._buildPerimeterWalls(cfg);
-        this._buildCoverBlocks(cfg);
-        this._buildProceduralProps(cfg);
         this._buildExplosiveBarrels(cfg);
         this._buildBackgroundStructures(cfg);
         this._buildFirePits(cfg);
         this._buildSmokeColumns(cfg);
         this._buildSky(cfg);
         this._buildSceneSpecificEffects(cfg);
-        this._loadSceneGLBs(cfg); // async; populates as it resolves
+        // Cover and clutter are built from the scene's GLBs, so they have to
+        // wait for the cache to fill. Collision is registered up front, before
+        // the await, so the arena is solid from the first frame even while the
+        // models are still decoding.
+        this._registerCoverObstacles(cfg);
+        this._loadSceneGLBs(cfg).then(() => {
+            if (this._disposed) return;
+            this._buildCoverBlocks(cfg);
+            this._buildProceduralProps(cfg);
+        });
 
         return cfg;
+    }
+
+    // Cover collision, independent of what ends up representing it visually.
+    // _buildCoverBlocks() runs after an await; without this the player could
+    // walk through every cover position until the GLBs finished decoding.
+    _registerCoverObstacles(cfg) {
+        for (const [x, z, w, d, , ry] of (cfg.coverBlocks || [])) {
+            const cosR = Math.abs(Math.cos(ry)), sinR = Math.abs(Math.sin(ry));
+            this.obstacles.push({ x, z, hw: (w * cosR + d * sinR) / 2, hd: (w * sinR + d * cosR) / 2 });
+        }
     }
 
     // ── Lighting ────────────────────────────────────────────────────
     _buildLighting(cfg, quality) {
         const lc = cfg.lighting;
+        // Multipliers deliberately >1: the authored configs are tuned for the
+        // Babylon renderer's brighter default. Three.js ACES tone mapping is
+        // dimmer, so these keep every arena readable instead of near-black.
         const hemi = new THREE.HemisphereLight(
-            col3(lc.ambientDiffuse), col3(lc.ambientGround), lc.ambientIntensity * 1.4);
+            col3(lc.ambientDiffuse), col3(lc.ambientGround), lc.ambientIntensity * 1.75);
         this.scene.add(hemi);
 
-        const sun = new THREE.DirectionalLight(col3(lc.sunDiffuse), lc.sunIntensity * 1.6);
+        const sun = new THREE.DirectionalLight(col3(lc.sunDiffuse), lc.sunIntensity * 2.0);
         const sd = lc.sunDirection;
-        sun.position.set(-sd[0] * 60, -sd[1] * 60, -sd[2] * 60);
+        const sunDist = Math.max(cfg.perimeter.halfW, cfg.perimeter.halfD) + 40;
+        sun.position.set(-sd[0] * sunDist, -sd[1] * sunDist, -sd[2] * sunDist);
         sun.castShadow = true;
         sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
+        // Cover the whole (now larger) play area, or props near the perimeter
+        // cast no shadow and pop as the sun frustum clips them.
         const cam = sun.shadow.camera;
-        cam.near = 1; cam.far = 200;
-        cam.left = -70; cam.right = 70; cam.top = 70; cam.bottom = -70;
+        const reach = Math.max(cfg.perimeter.halfW, cfg.perimeter.halfD) + 15;
+        cam.near = 1; cam.far = reach * 3;
+        cam.left = -reach; cam.right = reach; cam.top = reach; cam.bottom = -reach;
         sun.shadow.bias = -0.0006;
         sun.shadow.normalBias = 0.04;
         this.scene.add(sun);
@@ -132,10 +291,13 @@ export class World {
         ground.receiveShadow = true;
         this.scene.add(this._track(ground));
 
-        // Slab patches
+        // Slab patches. Keep the deployment area uncluttered: a floor-sized
+        // patch right in front of the camera read as a dark wall/obstacle.
         const slabColor = gc.slabColor || [0.35, 0.28, 0.22];
         const slabMat = new THREE.MeshStandardMaterial({ color: col3(slabColor), roughness: 0.9 });
         for (const [x, z] of (gc.slabPositions || [])) {
+            const start = cfg.playerStart;
+            if (start && Math.hypot(x - start.x, z - start.z) < 18) continue;
             const w = 4 + Math.random() * 8, d = 4 + Math.random() * 8;
             const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, d), slabMat);
             slab.position.set(x, 0.03, z);
@@ -147,7 +309,14 @@ export class World {
 
     // ── Perimeter walls + gate ──────────────────────────────────────
     _buildPerimeterWalls(cfg) {
-        const wallMat = new THREE.MeshStandardMaterial({ color: col3(cfg.wallColor || [0.25, 0.22, 0.18]), roughness: 0.85 });
+        // The perimeter walls are the largest flat surfaces in every arena, so
+        // an untextured material reads as a plain primitive slab from anywhere
+        // on the map.
+        const wallMat = this._trackMaterial(new THREE.MeshStandardMaterial({
+            map: this._track(concreteTexture(cfg.wallColor || [0.25, 0.22, 0.18], 91)),
+            color: new THREE.Color(0.95, 0.95, 0.95), roughness: 0.9,
+            emissive: new THREE.Color(0.02, 0.018, 0.015),
+        }));
         const wallH = 5, wallThick = 1.2;
         const hw = cfg.perimeter.halfW, hd = cfg.perimeter.halfD;
         const gateHalf = cfg.gateHalfWidth || 8;
@@ -159,7 +328,7 @@ export class World {
             { cx: -hw, cz: 0, w: wallThick, d: hd * 2 },
         ];
         for (const s of segments) {
-            const wall = new THREE.Mesh(new THREE.BoxGeometry(s.w, wallH, s.d), wallMat);
+            const wall = new THREE.Mesh(scaleBoxUVs(new THREE.BoxGeometry(s.w, wallH, s.d), s.w, wallH, s.d), wallMat);
             wall.position.set(s.cx, wallH / 2, s.cz);
             wall.castShadow = wall.receiveShadow = true;
             wall.userData = { isObstacle: true };
@@ -181,20 +350,102 @@ export class World {
         }
     }
 
+    // ── Model instancing helper ─────────────────────────────────────
+    // Returns a clone of a loaded scene GLB, tinted like the rest of that
+    // asset's placements and scaled so its footprint matches the requested
+    // box. Everything that used to be a bare BoxGeometry (cover slabs,
+    // crates, barrels, sandbags) goes through this, so the arena is built
+    // from the real assets instead of primitives. Returns null when the GLB
+    // isn't loaded — callers then fall back to their old procedural shape.
+    _instanceProp(cfg, name, { w, h, d, fit = 'height' }) {
+        const ac = (cfg.sceneAssets || {})[name];
+        const src = ac && _glbCache[ac.file];
+        if (!src) return null;
+
+        const root = src.clone(true);
+        const size = new THREE.Box3().setFromObject(src).getSize(new THREE.Vector3());
+        if (!(size.x > 0 && size.y > 0 && size.z > 0)) return null;
+        // Uniform scale, so no model is ever stretched out of proportion.
+        // 'height' fits stature (crates, barrels). 'footprint' fits cover to
+        // its blocking box — using the *smaller* of the two horizontal ratios
+        // and clamping against height, since taking the larger one scales the
+        // model until it swallows the arena.
+        // Cover is chest-high shooting cover, so height drives the fit and the
+        // horizontal ratios only cap it — a block that reads at the right
+        // stature but spills past its collision box is worse than a short one.
+        const s = fit === 'height'
+            ? h / size.y
+            : Math.min(h / size.y, Math.max(w / size.x, d / size.z));
+        if (!(s > 0 && isFinite(s))) return null;
+        root.scale.setScalar(s);
+
+        const tint = ac.tint || { d: [0.3, 0.28, 0.25], e: [0.02, 0.01, 0] };
+        const cache = (this._propMatCache ||= new Map());
+        root.traverse((o) => {
+            if (!o.isMesh) return;
+            let m = cache.get(o.material);
+            if (!m) {
+                m = o.material.clone();
+                // Tint the model's own material — replacing it outright would
+                // discard the baked baseColor map and put us right back to
+                // untextured-looking boxes.
+                if (m.map) m.color.lerp(col3(tint.d), 0.35);
+                else m.color = col3(tint.d);
+                m.emissive = col3(tint.e);
+                cache.set(o.material, m);
+                this._trackMaterial(m);
+            }
+            o.material = m;
+            o.castShadow = o.receiveShadow = true;
+        });
+        return root;
+    }
+
+    // Names of scene assets suitable for standing in as cover / clutter,
+    // in preference order, filtered to what this scene actually declares.
+    _propCandidates(cfg, names) {
+        const sa = cfg.sceneAssets || {};
+        return names.filter((n) => sa[n] && _glbCache[sa[n].file]);
+    }
+
     // ── Cover blocks (solid obstacles) ──────────────────────────────
     _buildCoverBlocks(cfg) {
         const cc = cfg.coverColors || { light: [0.32, 0.28, 0.22], dark: [0.2, 0.18, 0.15] };
-        const matL = new THREE.MeshStandardMaterial({ color: col3(cc.light), roughness: 0.85 });
-        const matD = new THREE.MeshStandardMaterial({ color: col3(cc.dark), roughness: 0.9 });
+        // Textured concrete rather than flat colour — these are the big grey
+        // slabs that otherwise read as untextured primitives beside the GLBs.
+        const texL = this._track(concreteTexture(cc.light, 11));
+        const texD = this._track(concreteTexture(cc.dark, 29));
+        const lift = new THREE.Color(0.03, 0.028, 0.025); // keeps shadowed faces from crushing to black
+        const matL = this._trackMaterial(new THREE.MeshStandardMaterial({ map: texL, color: col3(cc.light), roughness: 0.95, metalness: 0.02, emissive: lift }));
+        const matD = this._trackMaterial(new THREE.MeshStandardMaterial({ map: texD, color: col3(cc.dark), roughness: 0.97, metalness: 0.02, emissive: lift }));
+        const rng = seededRandom(517);
+        // Cover reads as barricades/rubble/wall chunks rather than grey slabs.
+        // Chosen per block from whatever this scene declares, so each arena
+        // stays in its own material vocabulary.
+        const models = this._propCandidates(cfg, ['barricade', 'rubble_pile', 'wall_segment', 'rusted_beam']);
         for (const [x, z, w, d, h, ry] of (cfg.coverBlocks || [])) {
-            const block = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), Math.random() > 0.5 ? matL : matD);
-            block.position.set(x, h / 2, z);
-            block.rotation.y = ry;
-            block.castShadow = block.receiveShadow = true;
-            block.userData = { isObstacle: true };
-            this.scene.add(block);
-            const cosR = Math.abs(Math.cos(ry)), sinR = Math.abs(Math.sin(ry));
-            this.obstacles.push({ x, z, hw: (w * cosR + d * sinR) / 2, hd: (w * sinR + d * cosR) / 2 });
+            const yaw = ry + (rng() - 0.5) * 0.05;
+            const pick = models.length ? models[(rng() * models.length) | 0] : null;
+            const model = pick && this._instanceProp(cfg, pick, { w, h, d, fit: 'footprint' });
+            if (model) {
+                model.position.set(x, 0, z);
+                model.rotation.y = yaw;
+                model.userData = { isObstacle: true };
+                this.scene.add(model);
+            } else {
+                const geo = scaleBoxUVs(new THREE.BoxGeometry(w, h, d), w, h, d);
+                const block = new THREE.Mesh(geo, rng() > 0.5 ? matL : matD);
+                block.position.set(x, h / 2, z);
+                // Slight settle/tilt so the slabs don't all sit perfectly plumb.
+                block.rotation.y = yaw;
+                block.rotation.z = (rng() - 0.5) * 0.02;
+                block.castShadow = block.receiveShadow = true;
+                block.userData = { isObstacle: true };
+                this.scene.add(block);
+            }
+            // Collision is not registered here — _registerCoverObstacles()
+            // already did it synchronously from the same authored footprint,
+            // so swapping the visual never changes how the arena plays.
         }
     }
 
@@ -214,13 +465,28 @@ export class World {
         const poleMat = m(pc.pole || [0.25, 0.2, 0.15]);
         const wireMat = new THREE.MeshStandardMaterial({ color: col3(pc.wire || [0.3, 0.28, 0.25]), wireframe: true });
 
+        // Small clutter uses the scene's own debris models where available;
+        // the primitives below remain only for a failed GLB load.
+        const crateModels = this._propCandidates(cfg, ['barricade', 'rubble_pile']);
+        const debrisModels = this._propCandidates(cfg, ['rubble_pile', 'rusted_beam', 'barricade']);
+        const sandbagModels = this._propCandidates(cfg, ['barricade', 'wall_segment', 'rubble_pile']);
+
         for (const [x, z] of (cfg.cratePositions || [])) {
             const count = 1 + (rng() * 3 | 0);
             for (let i = 0; i < count; i++) {
                 const w = 0.6 + rng() * 0.6, h = 0.5 + rng() * 0.8, d = 0.6 + rng() * 0.6;
+                const px = x + (rng() - 0.5) * 3, pz = z + (rng() - 0.5) * 3, yaw = rng() * Math.PI;
+                const pick = crateModels.length ? crateModels[(rng() * crateModels.length) | 0] : null;
+                const model = pick && this._instanceProp(cfg, pick, { w, h, d });
+                if (model) {
+                    model.position.set(px, 0, pz);
+                    model.rotation.y = yaw;
+                    this.scene.add(model);
+                    continue;
+                }
                 const crate = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), rng() > 0.5 ? crateMat : crateMatDk);
-                crate.position.set(x + (rng() - 0.5) * 3, h / 2, z + (rng() - 0.5) * 3);
-                crate.rotation.y = rng() * Math.PI;
+                crate.position.set(px, h / 2, pz);
+                crate.rotation.y = yaw;
                 crate.castShadow = crate.receiveShadow = true;
                 this.scene.add(crate);
             }
@@ -228,16 +494,36 @@ export class World {
         for (const [x, z] of (cfg.barrelPositions || [])) {
             const count = 1 + (rng() * 2 | 0);
             for (let i = 0; i < count; i++) {
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.27 + rng() * 0.1, 0.27 + rng() * 0.1, 0.9 + rng() * 0.3, 10), barrelMats[rng() * barrelMats.length | 0]);
-                barrel.position.set(x + (rng() - 0.5) * 2.5, 0.5, z + (rng() - 0.5) * 2.5);
-                if (rng() > 0.7) { barrel.rotation.x = Math.PI / 2; barrel.position.y = 0.3; }
-                barrel.rotation.y = rng() * Math.PI;
+                const h = 0.9 + rng() * 0.3, r = 0.27 + rng() * 0.1;
+                const px = x + (rng() - 0.5) * 2.5, pz = z + (rng() - 0.5) * 2.5;
+                const toppled = rng() > 0.7, yaw = rng() * Math.PI;
+                const pick = debrisModels.length ? debrisModels[(rng() * debrisModels.length) | 0] : null;
+                const model = pick && this._instanceProp(cfg, pick, { w: r * 2, h, d: r * 2 });
+                if (model) {
+                    model.position.set(px, 0, pz);
+                    model.rotation.y = yaw;
+                    this.scene.add(model);
+                    continue;
+                }
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 10), barrelMats[rng() * barrelMats.length | 0]);
+                barrel.position.set(px, 0.5, pz);
+                if (toppled) { barrel.rotation.x = Math.PI / 2; barrel.position.y = 0.3; }
+                barrel.rotation.y = yaw;
                 barrel.castShadow = true;
                 this.scene.add(barrel);
             }
         }
         for (const [x, z, ry] of (cfg.sandbagPositions || [])) {
-            const wall = new THREE.Mesh(new THREE.BoxGeometry(3 + rng() * 2, 0.8 + rng() * 0.4, 0.6), sandbagMat);
+            const w = 3 + rng() * 2, h = 0.8 + rng() * 0.4;
+            const pick = sandbagModels.length ? sandbagModels[(rng() * sandbagModels.length) | 0] : null;
+            const model = pick && this._instanceProp(cfg, pick, { w, h, d: 0.6, fit: 'footprint' });
+            if (model) {
+                model.position.set(x, 0, z);
+                model.rotation.y = ry;
+                this.scene.add(model);
+                continue;
+            }
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.6), sandbagMat);
             wall.position.set(x, 0.4, z); wall.rotation.y = ry;
             wall.castShadow = wall.receiveShadow = true;
             this.scene.add(wall);
@@ -288,7 +574,16 @@ export class World {
     _buildBackgroundStructures(cfg) {
         const bg = cfg.background || {};
         const metalMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.2, 0.18, 0.16), metalness: 0.6, roughness: 0.5 });
-        const darkMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.12, 0.11, 0.10), roughness: 0.7 });
+        // Textured: the bunkers built from this material are large enough to
+        // read as flat black primitives otherwise.
+        const darkMat = this._trackMaterial(new THREE.MeshStandardMaterial({
+            map: this._track(concreteTexture([0.19, 0.17, 0.15], 63)),
+            color: new THREE.Color(0.62, 0.6, 0.58), roughness: 0.85,
+            // These structures sit far back in shadow where almost no light
+            // reaches them; without a faint self-lit floor they silhouette as
+            // flat black boxes and the concrete detail is invisible.
+            emissive: new THREE.Color(0.055, 0.05, 0.045), emissiveIntensity: 1,
+        }));
         const redMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.5, 0.1, 0.05), emissive: new THREE.Color(0.1, 0.02, 0) });
         const warnMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.6, 0.5, 0.1), emissive: new THREE.Color(0.08, 0.06, 0) });
 
@@ -312,7 +607,9 @@ export class World {
         for (const bp of (bg.basePositions || [])) {
             const root = new THREE.Group(); root.position.set(bp.x, 0, bp.z); root.rotation.y = bp.ry || 0;
             const bw = 8 + Math.random() * 4, bh = 3 + Math.random() * 2, bd = 6 + Math.random() * 3;
-            const bunker = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), darkMat); bunker.position.y = bh / 2; bunker.castShadow = true; root.add(bunker);
+            const bunkerGeo = new THREE.BoxGeometry(bw, bh, bd);
+            scaleBoxUVs(bunkerGeo, bw, bh, bd);
+            const bunker = new THREE.Mesh(bunkerGeo, darkMat); bunker.position.y = bh / 2; bunker.castShadow = true; root.add(bunker);
             const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3, 6), metalMat); antenna.position.y = bh + 1.5; root.add(antenna);
             const warn = new THREE.Mesh(new THREE.SphereGeometry(0.125, 6, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.1, 0) })); warn.position.y = bh + 3.1; root.add(warn);
             this.scene.add(root);
@@ -414,6 +711,7 @@ export class World {
         } else {
             apply(proceduralSkyTexture(sky));
         }
+        if (sky.creon) this._buildCreon(sky.creon);
         if (sky.hasLightning) {
             let nextFlash = performance.now() + 8000 + Math.random() * 15000;
             const flashLight = new THREE.PointLight(new THREE.Color(0.9, 0.9, 1.0), 0, 80);
@@ -431,6 +729,59 @@ export class World {
                 if (flashLight.intensity > 0 && realNow > flashUntil) flashLight.intensity = 0;
             } });
         }
+    }
+
+    // ── CREON — the orbital relay watching the arena ────────────────
+    // A camera-locked billboard, not world geometry: it sits at a fixed offset
+    // from the player so it always reads as far away on the horizon and can
+    // never be walked up to, clipped through, or shot. fog:false keeps it from
+    // being dissolved by the scene's FogExp2 at that apparent distance.
+    _buildCreon(cc) {
+        const url = (cc.textureUrl && cc.textureUrl.startsWith('http')) ? cc.textureUrl : ASSET_BASE + (cc.textureUrl || 'art/creon-machine-wars.png');
+        const size = cc.size || 260;
+        const mat = new THREE.MeshBasicMaterial({
+            transparent: true, opacity: 0, depthWrite: false, depthTest: false,
+            fog: false, color: col3(cc.tint || [1, 1, 1]), blending: THREE.NormalBlending,
+        });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+        plane.renderOrder = -1;          // behind everything, above the sky
+        plane.frustumCulled = false;
+        this.scene.add(plane);
+        this._disposables.push(plane.geometry, mat);
+
+        _texLoader.load(url, (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            const cropped = creonFaceTexture(tex, cc);
+            mat.map = cropped;
+            mat.opacity = cc.opacity != null ? cc.opacity : 0.85;
+            mat.needsUpdate = true;
+            this._disposables.push(cropped);
+            tex.dispose(); // the crop owns its own canvas texture now
+        }, undefined, () => { /* art missing: leave the sky untouched */ });
+
+        // Keep it pinned relative to the camera each frame.
+        const az = cc.azimuth != null ? cc.azimuth : Math.PI;   // default: behind spawn, ahead of the player's view
+        const el = cc.elevation != null ? cc.elevation : 0.42;  // radians above horizon
+        // Must stay inside the camera's far plane or it is clipped and never
+        // drawn — keep a margin rather than trusting the configured value.
+        const far = (this.camera && this.camera.far) || 400;
+        const dist = Math.min(cc.distance || 300, far * 0.8);
+        const sway = cc.sway != null ? cc.sway : 0.015;
+        const cam = this.camera;
+        this.updaters.push({ update: (dt, now) => {
+            if (!cam) return;
+            const t = now * 0.001;
+            const a = az + Math.sin(t * 0.05) * sway;
+            const horiz = Math.cos(el) * dist;
+            plane.position.set(
+                cam.position.x + Math.sin(a) * horiz,
+                cam.position.y + Math.sin(el) * dist + Math.sin(t * 0.11) * (size * 0.006),
+                cam.position.z + Math.cos(a) * horiz,
+            );
+            plane.lookAt(cam.position);
+            // Slow pulse so it reads as a live presence rather than a pasted decal.
+            if (mat.map) mat.opacity = (cc.opacity != null ? cc.opacity : 0.85) * (0.92 + Math.sin(t * 0.7) * 0.08);
+        } });
     }
 
     // ── Scene-specific particle effects ─────────────────────────────
@@ -467,32 +818,132 @@ export class World {
         }
     }
 
+    // ── Outer-ring fill ─────────────────────────────────────────────
+    // The authored placements were laid out for a much smaller arena. Now that
+    // the perimeter reaches further, the band between the old layout and the
+    // wall would read as bare ground, so scatter more of the scene's own assets
+    // out there. Deterministic (seeded) so an arena looks the same every load,
+    // and kept clear of the player's start and the spawn approach.
+    _outerRingPlacements(cfg, sceneAssets) {
+        const out = new Map();
+        const names = Object.keys(sceneAssets);
+        if (!names.length) return out;
+
+        const hw = cfg.perimeter.halfW, hd = cfg.perimeter.halfD;
+        const inner = 46;                       // where the authored layout ends
+        const outerW = hw - 8, outerD = hd - 8; // stay off the wall
+        if (outerW <= inner) return out;
+
+        const rng = seededRandom((cfg.ground && cfg.ground.displacementSeed) || 7);
+        const start = cfg.playerStart || { x: 0, z: 0 };
+        // Prefer big silhouettes further out; they read as skyline, not clutter.
+        const big = names.filter((n) => (sceneAssets[n].scale || 0) >= 10);
+        const small = names.filter((n) => (sceneAssets[n].scale || 0) < 10);
+
+        const taken = [];
+        const count = Math.round(((outerW * outerD) - (inner * inner)) / 950);
+        for (let i = 0; i < count; i++) {
+            const edge = rng();
+            // Bias toward the ring: pick a point outside the inner square.
+            let x = (rng() * 2 - 1) * outerW;
+            let z = (rng() * 2 - 1) * outerD;
+            if (Math.abs(x) < inner && Math.abs(z) < inner) {
+                if (edge < 0.5) x = (x < 0 ? -1 : 1) * (inner + rng() * (outerW - inner));
+                else z = (z < 0 ? -1 : 1) * (inner + rng() * (outerD - inner));
+            }
+            if (Math.hypot(x - start.x, z - start.z) < 30) continue;
+            let clash = false;
+            for (const t of taken) { if (Math.hypot(x - t[0], z - t[1]) < 14) { clash = true; break; } }
+            if (clash) continue;
+            taken.push([x, z]);
+
+            const pool = (rng() < 0.55 && big.length) ? big : (small.length ? small : names);
+            const name = pool[(rng() * pool.length) | 0];
+            if (!out.has(name)) out.set(name, []);
+            out.get(name).push({ x, z, ry: rng() * Math.PI * 2 });
+        }
+        return out;
+    }
+
     // ── GLB scene assets (async, cloned per placement) ──────────────
     async _loadSceneGLBs(cfg) {
         const sceneAssets = cfg.sceneAssets || {};
         const names = Object.keys(sceneAssets);
-        await Promise.all(names.map(async (name) => {
-            const ac = sceneAssets[name];
-            if (_glbCache[ac.file]) return;
-            try {
-                const gltf = await _gltfLoader.loadAsync(SCENE_MODEL_BASE + ac.file);
-                _glbCache[ac.file] = gltf.scene;
-            } catch (e) { console.warn('[V2] GLB load failed', ac.file, e.message); }
-        }));
-        if (this._disposed) return;
+        // One decode at a time. Starting every Draco decode together causes
+        // renderer stalls on phones and made the whole set fall back to boxes.
         for (const name of names) {
             const ac = sceneAssets[name];
-            const src = _glbCache[ac.file];
-            if (!src) continue;
+            if (_glbCache[ac.file]) continue;
+            try {
+                const gltf = await loadGLB(SCENE_MODEL_BASE + ac.file);
+                _glbCache[ac.file] = registerTemplate(gltf.scene);
+            } catch (e) {
+                console.warn('[V2] GLB load failed — procedural fallback:', ac.file, e.message);
+            }
+        }
+        if (this._disposed) return;
+        const outer = this._outerRingPlacements(cfg, sceneAssets);
+        for (const name of names) {
+            const ac = sceneAssets[name];
             const tint = ac.tint || { d: [0.3, 0.28, 0.25], e: [0.02, 0.01, 0] };
-            const tintMat = new THREE.MeshStandardMaterial({ color: col3(tint.d), emissive: col3(tint.e), roughness: 0.85, metalness: 0.1 });
-            for (const p of ac.placements) {
+            let src = _glbCache[ac.file];
+            if (!src) {
+                // Build a low-poly silhouette so the arena stays populated.
+                if (!_fallbackCache[name]) _fallbackCache[name] = registerTemplate(_buildFallbackTemplate(name, tint));
+                src = _fallbackCache[name];
+            }
+            // Footprint of the unrotated, unscaled model — measured once per asset
+            // so each placement only has to apply its own scale/rotation.
+            const baseBox = new THREE.Box3().setFromObject(src);
+            const baseSize = baseBox.getSize(new THREE.Vector3());
+            // Tint the GLB's own materials rather than replacing them: the old
+            // code assigned a flat MeshStandardMaterial to every mesh, throwing
+            // away each model's baked baseColor texture, which is what made the
+            // real assets look like untextured procedural boxes. Materials are
+            // shared across this asset's placements (one clone per asset).
+            const isGLB = !!_glbCache[ac.file];
+            const matCache = new Map();
+            const tintOf = (src0) => {
+                let m = matCache.get(src0);
+                if (m) return m;
+                m = src0.clone();
+                if (m.map) m.color.lerp(col3(tint.d), 0.35);
+                else m.color = col3(tint.d);
+                m.emissive = col3(tint.e);
+                matCache.set(src0, m);
+                this._trackMaterial(m);
+                return m;
+            };
+            const flatMat = new THREE.MeshStandardMaterial({ color: col3(tint.d), emissive: col3(tint.e), roughness: 0.85, metalness: 0.1 });
+            this._trackMaterial(flatMat);
+            const placements = ac.placements.concat(outer.get(name) || []);
+            for (const p of placements) {
                 const root = src.clone(true);
                 root.position.set(p.x, 0, p.z);
                 root.rotation.y = p.ry || 0;
                 root.scale.setScalar(ac.scale);
-                root.traverse((o) => { if (o.isMesh) { o.material = tintMat; o.castShadow = true; o.receiveShadow = true; } });
+                root.traverse((o) => {
+                    if (!o.isMesh) return;
+                    o.material = isGLB ? tintOf(o.material) : flatMat;
+                    o.castShadow = true; o.receiveShadow = true;
+                });
                 this.scene.add(root);
+                // These props are solid geometry, but nothing here registered them
+                // as obstacles — the player walked straight through every ruin,
+                // wreck and barricade. Register the rotated AABB footprint, matching
+                // how _buildCoverBlocks() derives its own.
+                if (ac.noCollide) continue;
+                const ry = p.ry || 0;
+                const cosR = Math.abs(Math.cos(ry)), sinR = Math.abs(Math.sin(ry));
+                const w = baseSize.x * ac.scale, d = baseSize.z * ac.scale;
+                // Shrink slightly: the AABB of an irregular ruin overstates its
+                // solid core, and an oversized box blocks doorways and gaps.
+                const shrink = ac.collideScale ?? 0.8;
+                this.obstacles.push({
+                    x: p.x, z: p.z,
+                    hw: (w * cosR + d * sinR) / 2 * shrink,
+                    hd: (w * sinR + d * cosR) / 2 * shrink,
+                });
             }
         }
         // Vehicle fires
@@ -513,10 +964,23 @@ export class World {
 
     dispose() {
         this._disposed = true;
+        // _glbCache / _fallbackCache templates are module-level and reused by
+        // the next World; Object3D.clone() shares their geometry and materials
+        // by reference, so freeing everything reachable from the scene graph
+        // would blank out every prop after a scene switch. Dispose only what
+        // this World allocated.
         this.scene.traverse((o) => {
-            if (o.geometry) o.geometry.dispose();
-            if (o.material) { const m = o.material; (Array.isArray(m) ? m : [m]).forEach((mm) => mm.dispose()); }
+            if (o.geometry && !_templateGeos.has(o.geometry)) o.geometry.dispose();
         });
+        for (const m of this._ownMaterials) m.dispose();
+        this._ownMaterials = [];
+        // Keyed by template material, valued by this World's disposed clones —
+        // holding it would hand the next World dead materials.
+        this._propMatCache = null;
+        // Textures/geometry/materials registered via _track() are this World's
+        // own (canvas textures, the CREON billboard) — nothing shares them.
+        for (const d of this._disposables) { if (d && typeof d.dispose === 'function') d.dispose(); }
+        this._disposables = [];
         for (const k in this.pools) this.pools[k].dispose();
         this.updaters = []; this.obstacles = []; this.firePits = []; this.explosiveBarrels = [];
     }

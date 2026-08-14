@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   AUTONOMOUS WAR V2 — hud.js (DOM/CSS overlay)
+   MACHINE WARS — hud.js (DOM/CSS overlay)
    Reticle, HP bar, ammo, wave/score/kills, wave banner, combo,
    reload indicator, radar minimap, damage-direction arrow,
    muzzle + damage flash. All styled in css/style.css (#hud-*).

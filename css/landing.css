@@ -1,0 +1,216 @@
+/* ─────────────────────────────────────────────────────────────
+   MACHINE WARS — landing page styles (marketing / shooter design)
+   Terminal-HUD aesthetic shared with the game: monospace,
+   #00ff88 signal green on near-black, scanlines, HUD frames.
+   ───────────────────────────────────────────────────────────── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+    background: #060d08;
+    color: #c9d6cd;
+    font-family: 'Courier New', Courier, monospace;
+    overflow-x: hidden;
+}
+
+::selection { background: rgba(0, 255, 136, 0.25); color: #fff; }
+
+/* ── Atmosphere overlays ── */
+.lw-scanlines {
+    position: fixed; inset: 0; pointer-events: none; z-index: 900;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.10) 2px, rgba(0,0,0,0.10) 4px);
+}
+.lw-vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 899;
+    box-shadow: inset 0 0 220px rgba(0, 0, 0, 0.72);
+}
+
+/* ── Header ── */
+.lw-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 950;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 10px 28px;
+    background: rgba(4, 9, 6, 0.82);
+    border-bottom: 1px solid rgba(0, 255, 136, 0.18);
+    backdrop-filter: blur(6px);
+    flex-wrap: wrap;
+}
+.lw-logo img { height: 34px; display: block; }
+.lw-logo { text-decoration: none; }
+
+.lw-nav { display: flex; gap: 22px; flex-wrap: wrap; }
+.lw-nav a {
+    color: rgba(0, 255, 136, 0.55); text-decoration: none;
+    font-size: 11px; letter-spacing: 0.2em;
+    transition: color 0.2s, text-shadow 0.2s;
+}
+.lw-nav a:hover { color: #00ff88; text-shadow: 0 0 12px rgba(0,255,136,0.8); }
+
+.lw-cta {
+    color: #000; background: #00ff88; text-decoration: none;
+    font-size: 11px; font-weight: bold; letter-spacing: 0.25em;
+    padding: 9px 20px; border: 1px solid #00ff88;
+    box-shadow: 0 0 18px rgba(0, 255, 136, 0.35);
+    transition: background 0.2s, color 0.2s;
+}
+.lw-cta:hover { background: #fff; border-color: #fff; box-shadow: 0 0 28px rgba(255,255,255,0.4); }
+
+/* ── Hero ── */
+.lw-hero {
+    position: relative; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 120px 24px 90px;
+    overflow: hidden;
+}
+.lw-hero-bg {
+    position: absolute; inset: 0; z-index: -1;
+    background-size: cover; background-position: center;
+    filter: saturate(0.55) brightness(0.45) contrast(1.15);
+}
+.lw-hero-bg::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(6,13,8,0.25) 0%, rgba(6,13,8,0.88) 78%, #060d08 100%);
+}
+.lw-hero-kicker {
+    font-size: 11px; letter-spacing: 0.28em; color: #00ff88; opacity: 0.75;
+    margin-bottom: 18px;
+}
+.lw-hero-title {
+    font-size: clamp(44px, 9vw, 108px);
+    letter-spacing: 0.12em; color: #eafff3;
+    text-shadow: 0 0 40px rgba(0, 255, 136, 0.55), 0 0 120px rgba(0, 255, 136, 0.25);
+    margin-bottom: 8px;
+}
+.lw-hero-tag {
+    font-size: clamp(13px, 2vw, 18px); letter-spacing: 0.55em;
+    color: #00ff88; margin-bottom: 26px;
+    text-indent: 0.55em;
+}
+.lw-hero-sub {
+    font-size: clamp(11px, 1.6vw, 14px); line-height: 2;
+    letter-spacing: 0.08em; color: rgba(201, 214, 205, 0.75);
+    margin-bottom: 34px;
+}
+.lw-hero-strong { color: #ff5a4d; }
+.lw-hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+.lw-hero-meta {
+    font-size: 10px; letter-spacing: 0.25em; color: rgba(0, 255, 136, 0.45);
+}
+.lw-scroll-hint {
+    position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    color: rgba(0, 255, 136, 0.5); text-decoration: none;
+    font-size: 10px; letter-spacing: 0.3em;
+    animation: lwBob 2.2s ease-in-out infinite;
+}
+@keyframes lwBob { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 8px); } }
+
+/* ── Buttons ── */
+.lw-btn {
+    display: inline-block; text-decoration: none;
+    font-family: inherit; font-size: 13px; font-weight: bold;
+    letter-spacing: 0.3em; padding: 14px 30px; text-transform: uppercase;
+    transition: all 0.2s;
+}
+.lw-btn-primary { color: #000; background: #00ff88; border: 1px solid #00ff88; box-shadow: 0 0 22px rgba(0,255,136,0.4); }
+.lw-btn-primary:hover { background: #fff; border-color: #fff; box-shadow: 0 0 34px rgba(255,255,255,0.45); }
+.lw-btn-ghost { color: #00ff88; border: 1px solid rgba(0,255,136,0.4); background: rgba(0,20,10,0.4); }
+.lw-btn-ghost:hover { border-color: #00ff88; box-shadow: 0 0 18px rgba(0,255,136,0.3); }
+.lw-btn-lg { padding: 18px 42px; font-size: 15px; }
+
+/* ── Sections ── */
+.lw-sec { padding: 96px 24px; position: relative; }
+.lw-sec-alt { background: rgba(0, 255, 136, 0.028); border-top: 1px solid rgba(0,255,136,0.1); border-bottom: 1px solid rgba(0,255,136,0.1); }
+.lw-sec-head { text-align: center; margin-bottom: 54px; }
+.lw-kicker { font-size: 10px; letter-spacing: 0.35em; color: rgba(0,255,136,0.55); margin-bottom: 14px; }
+.lw-title {
+    font-size: clamp(22px, 4vw, 40px); letter-spacing: 0.2em;
+    color: #eafff3; text-shadow: 0 0 26px rgba(0,255,136,0.35);
+    margin-bottom: 14px;
+}
+.lw-title-big { font-size: clamp(26px, 5vw, 52px); line-height: 1.5; }
+.lw-sec-sub { font-size: 12px; letter-spacing: 0.14em; color: rgba(201,214,205,0.55); line-height: 1.9; }
+
+/* ── Story acts ── */
+.lw-acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; max-width: 1200px; margin: 0 auto; }
+.lw-act {
+    border: 1px solid rgba(0,255,136,0.18); background: rgba(0,10,5,0.5);
+    padding: 24px; position: relative; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.lw-act::before {
+    content: ''; position: absolute; top: -1px; left: -1px;
+    width: 26px; height: 26px;
+    border-top: 2px solid #00ff88; border-left: 2px solid #00ff88;
+}
+.lw-act:hover { border-color: rgba(0,255,136,0.6); box-shadow: 0 0 26px rgba(0,255,136,0.12); }
+.lw-act-idx { font-size: 10px; letter-spacing: 0.24em; color: #00ff88; margin-bottom: 12px; }
+.lw-act-body { font-size: 12px; line-height: 1.9; letter-spacing: 0.05em; color: rgba(201,214,205,0.78); }
+.lw-accent { color: #00ff88; }
+
+/* ── Factions ── */
+.lw-factions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; max-width: 1200px; margin: 0 auto; }
+.lw-faction { padding: 26px; border: 1px solid rgba(0,255,136,0.15); background: rgba(0,10,5,0.5); }
+.lw-faction-name { font-size: 13px; letter-spacing: 0.22em; margin-bottom: 12px; }
+.lw-faction-body { font-size: 12px; line-height: 1.9; letter-spacing: 0.05em; color: rgba(201,214,205,0.7); }
+.lw-faction-human .lw-faction-name { color: #00aaff; }
+.lw-faction-rogue .lw-faction-name { color: #ff5a4d; }
+.lw-faction-ghost .lw-faction-name { color: #00ff88; }
+
+/* ── Warzones ── */
+.lw-zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; max-width: 1200px; margin: 0 auto; }
+.lw-zone {
+    min-height: 150px; padding: 20px; display: flex; flex-direction: column; justify-content: flex-end;
+    border: 1px solid rgba(0,255,136,0.25);
+    background: var(--zone-grad), #0a0f0b;
+    position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s;
+}
+.lw-zone:hover { transform: translateY(-4px); box-shadow: 0 10px 34px rgba(0,0,0,0.55), 0 0 20px rgba(0,255,136,0.15); }
+.lw-zone::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(0,5,3,0.85) 0%, transparent 60%);
+}
+.lw-zone-name { position: relative; z-index: 1; font-size: 12px; letter-spacing: 0.2em; color: #eafff3; margin-bottom: 6px; }
+.lw-zone-desc { position: relative; z-index: 1; font-size: 10px; letter-spacing: 0.08em; line-height: 1.7; color: rgba(201,214,205,0.65); }
+
+/* ── Arsenal specs ── */
+.lw-specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; max-width: 1200px; margin: 0 auto; }
+.lw-spec { border-left: 2px solid #00ff88; padding: 0 20px; }
+.lw-spec-name { font-size: 12px; letter-spacing: 0.22em; color: #00ff88; margin-bottom: 10px; }
+.lw-spec-body { font-size: 12px; line-height: 1.9; letter-spacing: 0.05em; color: rgba(201,214,205,0.7); }
+
+/* ── Media ── */
+.lw-media { max-width: 900px; margin: 0 auto; border: 1px solid rgba(0,255,136,0.25); padding: 8px; background: rgba(0,8,4,0.6); }
+.lw-media video { width: 100%; display: block; background: #000; }
+
+/* ── Roadmap ── */
+.lw-roadmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; max-width: 1200px; margin: 0 auto; }
+.lw-phase { border: 1px solid rgba(0,255,136,0.15); padding: 24px; background: rgba(0,10,5,0.5); }
+.lw-phase-now { border-color: rgba(0,255,136,0.6); box-shadow: 0 0 24px rgba(0,255,136,0.12); }
+.lw-phase-tag { font-size: 10px; letter-spacing: 0.3em; color: #00ff88; margin-bottom: 12px; }
+.lw-phase-name { font-size: 12px; letter-spacing: 0.18em; color: #eafff3; margin-bottom: 10px; }
+.lw-phase-body { font-size: 11px; line-height: 1.9; letter-spacing: 0.05em; color: rgba(201,214,205,0.65); }
+
+/* ── Final CTA ── */
+.lw-cta-sec { text-align: center; padding: 110px 24px; }
+
+/* ── Footer ── */
+.lw-footer { border-top: 1px solid rgba(0,255,136,0.15); padding: 50px 24px 30px; background: #040806; }
+.lw-footer-grid {
+    display: flex; justify-content: space-between; gap: 30px; flex-wrap: wrap;
+    max-width: 1200px; margin: 0 auto 30px;
+}
+.lw-footer-brand { max-width: 420px; }
+.lw-footer-brand img { height: 30px; margin-bottom: 14px; }
+.lw-footer-brand p { font-size: 11px; line-height: 1.9; letter-spacing: 0.06em; color: rgba(201,214,205,0.5); }
+.lw-footer-links { display: flex; flex-direction: column; gap: 10px; }
+.lw-footer-links a { color: rgba(0,255,136,0.55); text-decoration: none; font-size: 11px; letter-spacing: 0.2em; }
+.lw-footer-links a:hover { color: #00ff88; }
+.lw-footer-legal { text-align: center; font-size: 10px; letter-spacing: 0.2em; color: rgba(201,214,205,0.35); }
+
+/* ── Responsive ── */
+@media (max-width: 720px) {
+    .lw-header { justify-content: center; padding: 10px 14px; }
+    .lw-nav { order: 3; width: 100%; justify-content: center; gap: 14px; }
+    .lw-sec { padding: 64px 18px; }
+    .lw-hero-actions { flex-direction: column; align-items: center; }
+}

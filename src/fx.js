@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   AUTONOMOUS WAR V2 — fx.js
+   MACHINE WARS — fx.js
    Procedural textures, GPU particle pools, post-processing setup.
 
    Particle strategy (perf upgrade over Babylon v1):
@@ -96,6 +96,75 @@ export function proceduralSkyTexture(skyCfg) {
     return tex;
 }
 
+// ── CREON face crop ─────────────────────────────────────────────────
+// The source art is a full battle scene; CREON's head occupies its upper-left
+// quadrant. Crop to just the head and feather the edges to transparency so the
+// billboard dissolves into the sky instead of showing a rectangular seam.
+// Crop rect is expressed in 0..1 fractions of the source so re-cropping a
+// different piece of art needs only config, not code.
+export function creonFaceTexture(srcTex, cfg) {
+    const img = srcTex.image;
+    const S = 1024;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const ctx = c.getContext('2d');
+
+    const cr = (cfg && cfg.crop) || { x: 0.13, y: 0.0, w: 0.42, h: 0.62 };
+    const sx = cr.x * img.width, sy = cr.y * img.height;
+    const sw = cr.w * img.width, sh = cr.h * img.height;
+    // Fit the crop into the square canvas without distorting the face.
+    const scale = Math.min(S / sw, S / sh);
+    const dw = sw * scale, dh = sh * scale;
+    ctx.drawImage(img, sx, sy, sw, sh, (S - dw) / 2, (S - dh) / 2, dw, dh);
+
+    // Feather: radial alpha falloff, and knock out the near-black background
+    // so the dark sky of the art doesn't sit as a grey box over the game sky.
+    const id = ctx.getImageData(0, 0, S, S);
+    const px = id.data;
+    const cxp = S / 2, cyp = S / 2;
+    const halfW = dw / 2, halfH = dh / 2;
+    const inner = (cfg && cfg.feather != null) ? cfg.feather : 0.48;
+    const gain = (cfg && cfg.gain != null) ? cfg.gain : 1.5;
+    const invG = 1 / ((cfg && cfg.gamma != null) ? cfg.gamma : 1.25);
+    for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+            const i = (y * S + x) * 4;
+            // Normalise against the drawn image's own half-extents, not the
+            // square canvas: a non-square crop otherwise runs out of canvas
+            // before the fade completes and leaves a hard straight edge.
+            const dx = (x - cxp) / halfW, dy = (y - cyp) / halfH;
+            const r = Math.sqrt(dx * dx + dy * dy);
+            let a = 1;
+            // Smoothstep rather than a linear ramp: a straight falloff still
+            // ends on a visible circular seam against the sky.
+            if (r > inner) {
+                const u = Math.min(1, (r - inner) / (1 - inner));
+                a = 1 - (u * u * (3 - 2 * u));
+            }
+            // Knock out only the true near-black background. The art has a low
+            // mean luminance (~0.12) and the face reads by contrast rather than
+            // brightness, so this curve must stay gentle — an aggressive
+            // threshold erases the face along with the sky behind it.
+            const lum = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) / 255;
+            const lumA = Math.min(1, Math.max(0, (lum - 0.015) / 0.06));
+            px[i + 3] = Math.round(px[i + 3] * a * lumA);
+
+            // Lift the RGB itself. Alpha-blending near-black pixels (~20/255)
+            // over a dark sky yields nothing visible, so the face must be
+            // brightened here — gain plus gamma keeps the panel detail and the
+            // red eyes intact instead of flattening them to grey.
+            px[i]     = Math.min(255, Math.round(255 * Math.pow(px[i] / 255, invG) * gain));
+            px[i + 1] = Math.min(255, Math.round(255 * Math.pow(px[i + 1] / 255, invG) * gain));
+            px[i + 2] = Math.min(255, Math.round(255 * Math.pow(px[i + 2] / 255, invG) * gain));
+        }
+    }
+    ctx.putImageData(id, 0, 0);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
 // ── Ground procedural texture (warzone) ─────────────────────────────
 export function proceduralGroundTexture(gc) {
     const size = 512;
@@ -125,6 +194,67 @@ export function proceduralGroundTexture(gc) {
         ctx.moveTo(cx, cy);
         for (let s = 0; s < 6; s++) { cx += (rng() - 0.5) * 45; cy += (rng() - 0.5) * 45; ctx.lineTo(cx, cy); }
         ctx.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
+// ── Cover-block surface (weathered concrete slab) ───────────────────
+// Cover blocks were flat-coloured MeshStandard boxes, which read as untextured
+// grey primitives next to the GLB props. This gives them a poured-concrete
+// face: aggregate speckle, form-panel seams, edge chipping and grime streaks.
+export function concreteTexture(baseRGB, seed) {
+    const size = 512;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const b = baseRGB || [0.32, 0.28, 0.22];
+    const B = b.map((v) => Math.round(v * 255));
+    ctx.fillStyle = `rgb(${B[0]},${B[1]},${B[2]})`;
+    ctx.fillRect(0, 0, size, size);
+    const rng = seededRandom(seed || 7);
+
+    // Aggregate speckle
+    for (let i = 0; i < 2600; i++) {
+        const px = rng() * size, py = rng() * size;
+        const r = 0.6 + rng() * 2.6;
+        const d = (rng() - 0.5) * 60;
+        ctx.fillStyle = `rgba(${B[0] + d | 0},${B[1] + d | 0},${B[2] + d | 0},0.5)`;
+        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+    }
+    // Broad blotching so it isn't uniform noise
+    for (let i = 0; i < 26; i++) {
+        const px = rng() * size, py = rng() * size, r = 30 + rng() * 110;
+        const d = (rng() - 0.5) * 34;
+        const g = ctx.createRadialGradient(px, py, 0, px, py, r);
+        g.addColorStop(0, `rgba(${B[0] + d | 0},${B[1] + d | 0},${B[2] + d | 0},0.4)`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(px - r, py - r, r * 2, r * 2);
+    }
+    // Form-panel seams
+    ctx.strokeStyle = `rgba(${B[0] * 0.55 | 0},${B[1] * 0.55 | 0},${B[2] * 0.55 | 0},0.75)`;
+    ctx.lineWidth = 2;
+    for (const f of [0.5]) {
+        ctx.beginPath(); ctx.moveTo(0, size * f); ctx.lineTo(size, size * f); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(size * f, 0); ctx.lineTo(size * f, size); ctx.stroke();
+    }
+    // Grime streaks running down the face
+    for (let i = 0; i < 22; i++) {
+        const px = rng() * size, w = 3 + rng() * 16, h = 40 + rng() * 260;
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, 'rgba(20,16,12,0.30)');
+        g.addColorStop(1, 'rgba(20,16,12,0)');
+        ctx.fillStyle = g; ctx.fillRect(px, rng() * size * 0.5, w, h);
+    }
+    // Chipped edges / exposed corners
+    ctx.fillStyle = `rgba(${B[0] + 40 | 0},${B[1] + 36 | 0},${B[2] + 30 | 0},0.55)`;
+    for (let i = 0; i < 30; i++) {
+        const edge = rng();
+        const px = edge < 0.5 ? (rng() < 0.5 ? rng() * 26 : size - rng() * 26) : rng() * size;
+        const py = edge < 0.5 ? rng() * size : (rng() < 0.5 ? rng() * 26 : size - rng() * 26);
+        ctx.beginPath(); ctx.arc(px, py, 1.5 + rng() * 5, 0, Math.PI * 2); ctx.fill();
     }
     const tex = new THREE.CanvasTexture(c);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
