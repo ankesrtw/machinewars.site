@@ -20,7 +20,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dryRun = process.argv.includes('--dry-run');
@@ -61,8 +62,25 @@ console.log('account id + api token present');
 
 // ── 3. Deploy ───────────────────────────────────────────────────────
 step('Deploying to Cloudflare Pages');
-execFileSync(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['wrangler', 'pages', 'deploy', '.', '--project-name', 'machinewars-site', '--commit-dirty=true'],
-    { stdio: 'inherit', cwd: root, env },
-);
+const args = ['pages', 'deploy', '.', '--project-name', 'machinewars-site', '--commit-dirty=true'];
+
+// Prefer running wrangler's JS entry point under this same node binary.
+// Spawning the `npx`/`wrangler` shims directly is not portable: on Windows
+// they are .cmd files, and Node >=20 refuses to spawnSync a .cmd without a
+// shell (EINVAL). Resolving the package sidesteps the shim entirely.
+let wranglerEntry = null;
+try {
+    const req = createRequire(path.join(root, 'noop.js'));
+    const pkgPath = req.resolve('wrangler/package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    const bin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.wrangler;
+    if (bin) wranglerEntry = path.join(path.dirname(pkgPath), bin);
+} catch { /* not installed locally — fall back to npx below */ }
+
+if (wranglerEntry && fs.existsSync(wranglerEntry)) {
+    execFileSync(process.execPath, [wranglerEntry, ...args], { stdio: 'inherit', cwd: root, env });
+} else {
+    // No local install: go through npx, via the shell so Windows resolves
+    // the .cmd shim correctly.
+    execSync(`npx wrangler ${args.join(' ')}`, { stdio: 'inherit', cwd: root, env });
+}
