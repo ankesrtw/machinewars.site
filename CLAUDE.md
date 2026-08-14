@@ -1,0 +1,1 @@
+See [AGENTS.md](./AGENTS.md) — that file is the source of truth for this project (run/deploy commands, page-depth/relative-path rules, module map, asset/caching notes, repo state). Keep both filenames since some tools look for one or the other; edit AGENTS.md, not this file.
