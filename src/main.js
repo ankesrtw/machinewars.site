@@ -13,6 +13,7 @@ import { World, SCENE_CONFIGS, DEFAULT_SCENE } from './scenes.js';
 import { WaveManager, WAVE_CONFIGS, setContext } from './enemies.js';
 import { HUD } from './hud.js';
 import { Audio } from './audio.js';
+import { withVersion, BUILD_ID } from './version.js';
 
 // ── Quality presets ──────────────────────────────────────────────────
 const QUALITY_PRESETS = {
@@ -229,7 +230,7 @@ function buildScenePicker() {
         card.href = prefix + id + '/';
         card.setAttribute('aria-label', `Deploy to ${cfg.name}`);
         const img = cfg.previewImage
-            ? `<span class="aw-scene-card-img" style="background-image:url('${cfg.previewImage}')"></span>`
+            ? `<span class="aw-scene-card-img" style="background-image:url('${withVersion(cfg.previewImage)}')"></span>`
             : `<span class="aw-scene-card-img" style="background:${cfg.previewGradient || '#111'}"></span>`;
         const s = String(idx).padStart(2, '0');
         card.innerHTML = `

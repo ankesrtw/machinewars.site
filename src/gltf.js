@@ -11,6 +11,11 @@ export const dracoLoader = new DRACOLoader();
 // reliable) and falls back to JS if unsupported.
 // Resolve from this module rather than the page URL so the game also works
 // when deployed under a project subdirectory (for example /machinewars/).
+// Deliberately NOT run through withVersion(): this is a directory prefix that
+// DRACOLoader concatenates filenames onto, so a query string here would land
+// mid-URL and 404. These are pinned Three.js decoder binaries — to update them,
+// bump the vendored Three.js version (which changes the path) rather than
+// overwriting the files in place.
 dracoLoader.setDecoderPath(new URL('../vendor/three/addons/libs/draco/gltf/', import.meta.url).href);
 
 const gltfLoader = new GLTFLoader().setDRACOLoader(dracoLoader);

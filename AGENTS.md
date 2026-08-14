@@ -43,7 +43,16 @@ The source art is dark (mean luminance ~0.12), so the texture pass lifts RGB via
 
 ## Caching (`_headers`)
 
-`/assets/*` and `/vendor/*` are `immutable`, max-age 1y; `index.html` and `/play*` are never cached. New or renamed assets therefore serve correctly on a new deploy, but reusing a path expects the file to be permanent — don't overwrite an existing asset in place expecting clients to refetch.
+`/assets/*` and `/vendor/*` are `immutable`, max-age 1y; `index.html` and `/play*` are never cached.
+
+Overwriting an asset in place at the same path would therefore never reach returning visitors — an `immutable` response isn't even revalidated until it expires. **Cache busting solves this**: every asset URL carries a `?v=<BUILD_ID>` query string, which changes the cache key without renaming files.
+
+- `src/version.js` holds `BUILD_ID` and the `withVersion()` helper. All runtime asset loads (GLBs in `scenes.js`/`enemies.js`, textures, scene preview images) are wrapped in `withVersion()`.
+- URLs baked into HTML are stamped by `node tools/stamp-assets.mjs`, which reads `BUILD_ID` and rewrites all 9 pages. It's idempotent — an existing `?v=` is replaced, not appended.
+
+**On any deploy that changes a file under `assets/` in place: bump `BUILD_ID` in `src/version.js`, run `node tools/stamp-assets.mjs`, then deploy.** Skipping this means returning visitors keep the old assets.
+
+The Draco decoder path in `src/gltf.js` is deliberately *not* versioned — it's a directory prefix DRACOLoader concatenates filenames onto, so a query string there would land mid-URL and 404. Those are pinned Three.js binaries; update them by bumping the vendored Three.js version instead. Same reasoning for the `/vendor/three/*` importmap entries.
 
 ## Music player (currently unwired)
 

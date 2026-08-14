@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadGLB } from './gltf.js';
 import { SCENE_MODEL_BASE } from './scenes-data.js';
+import { withVersion } from './version.js';
 
 const _modelCache = {}; // type -> gltf.scene template
 const ENEMY_UP = new THREE.Vector3(0, 1, 0);
@@ -199,7 +200,7 @@ async function preloadModels() {
     for (const t of types) {
         if (_modelCache[t]) continue;
         try {
-            const g = await withTimeout(loadGLB(SCENE_MODEL_BASE + `${t}.glb`, 'high'), 30000, `${t}.glb`);
+            const g = await withTimeout(loadGLB(withVersion(SCENE_MODEL_BASE + `${t}.glb`), 'high'), 30000, `${t}.glb`);
             _modelCache[t] = g.scene;
             g.scene.traverse((o) => { if (o.isMesh && o.geometry) _templateGeos.add(o.geometry); });
         } catch (e) { console.warn(`[V2] ${t}.glb load failed — fallback primitives:`, e.message); }

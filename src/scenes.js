@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { loadGLB } from './gltf.js';
 import { SCENE_CONFIGS, DEFAULT_SCENE, SCENE_MODEL_BASE, SCENE_TEXTURE_BASE, ASSET_BASE } from './scenes-data.js';
+import { withVersion } from './version.js';
 import {
     seededRandom, proceduralGroundTexture, proceduralSkyTexture,
     fireTexture, smokeTexture, ParticlePool, ContinuousEmitter, creonFaceTexture,
@@ -273,7 +274,7 @@ export class World {
         mat.roughness = 1 - Math.min(0.5, (sp[0] + sp[1] + sp[2]));
 
         if (gc.type === 'texture' && gc.textureUrl) {
-            _texLoader.load(SCENE_TEXTURE_BASE + gc.textureUrl, (tex) => {
+            _texLoader.load(withVersion(SCENE_TEXTURE_BASE + gc.textureUrl), (tex) => {
                 tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
                 tex.repeat.set(gc.textureUScale || 8, gc.textureVScale || 8);
                 tex.colorSpace = THREE.SRGBColorSpace;
@@ -703,7 +704,7 @@ export class World {
         const sky = cfg.sky;
         const apply = (tex) => { this.scene.background = tex; };
         if (sky.type === 'equirectangular' && sky.textureUrl) {
-            _texLoader.load(SCENE_TEXTURE_BASE + sky.textureUrl, (tex) => {
+            _texLoader.load(withVersion(SCENE_TEXTURE_BASE + sky.textureUrl), (tex) => {
                 tex.mapping = THREE.EquirectangularReflectionMapping;
                 tex.colorSpace = THREE.SRGBColorSpace;
                 apply(tex);
@@ -749,7 +750,7 @@ export class World {
         this.scene.add(plane);
         this._disposables.push(plane.geometry, mat);
 
-        _texLoader.load(url, (tex) => {
+        _texLoader.load(withVersion(url), (tex) => {
             tex.colorSpace = THREE.SRGBColorSpace;
             const cropped = creonFaceTexture(tex, cc);
             mat.map = cropped;
@@ -875,7 +876,9 @@ export class World {
             const ac = sceneAssets[name];
             if (_glbCache[ac.file]) continue;
             try {
-                const gltf = await loadGLB(SCENE_MODEL_BASE + ac.file);
+                // Cache keys stay keyed on the bare filename (_glbCache above);
+                // only the fetch URL carries the build id.
+                const gltf = await loadGLB(withVersion(SCENE_MODEL_BASE + ac.file));
                 _glbCache[ac.file] = registerTemplate(gltf.scene);
             } catch (e) {
                 console.warn('[V2] GLB load failed — procedural fallback:', ac.file, e.message);
