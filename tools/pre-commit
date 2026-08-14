@@ -1,0 +1,15 @@
+#!/bin/sh
+# Machine Wars — pre-commit hook.
+#
+# Regenerates the asset build id if anything under assets/ is being
+# committed, so a changed asset can never ship with a stale ?v= that
+# returning visitors would ignore (see Caching in AGENTS.md).
+#
+# Install: node tools/install-hooks.mjs
+
+if git diff --cached --name-only | grep -q '^assets/'; then
+    echo "pre-commit: assets/ changed — regenerating build id"
+    node tools/gen-version.mjs || exit 1
+    # Fold the regenerated id (and the re-stamped HTML) into this commit.
+    git add src/version.js index.html play/index.html play/*/index.html
+fi

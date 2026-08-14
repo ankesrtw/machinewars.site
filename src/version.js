@@ -1,24 +1,29 @@
 /* ═══════════════════════════════════════════════════════════════════
    MACHINE WARS — version.js (cache busting)
 
-   /assets/* and /vendor/* are served `immutable, max-age=1y` (see
-   _headers). That is the right policy for bandwidth, but it means a
-   returning visitor keeps whatever copy their browser already has —
-   overwriting a model or texture in place at the same path ships an
-   update that those visitors never see, because the browser does not
-   even revalidate an immutable response until it expires.
+   ⚠ GENERATED FILE — do not edit by hand.
+   Regenerate with: node tools/gen-version.mjs
+   (tools/deploy.mjs runs it automatically before every deploy.)
 
-   Rather than rename every asset on each deploy, stamp a build id onto
-   asset URLs as a query string. The bytes are identical, but the URL
-   is a distinct cache key, so a new BUILD_ID makes every client fetch
-   fresh copies while unchanged deploys keep hitting cache.
+   /assets/* is served `immutable, max-age=1y` (see _headers). That is
+   the right policy for bandwidth, but it means a returning visitor keeps
+   whatever copy their browser already has — overwriting a model or
+   texture in place ships an update those visitors never see, because a
+   browser does not even revalidate an immutable response until it
+   expires.
 
-   HTML and JS are already `no-cache`, so a fresh page load always sees
-   the current BUILD_ID and therefore the current assets.
+   So asset URLs carry this build id as a ?v= query string. The bytes are
+   identical but the URL is a distinct cache key, so a changed id makes
+   clients refetch while unchanged deploys keep hitting cache.
 
-   ── Bump this on any deploy that changes a file under assets/ or
-   vendor/ in place. ──────────────────────────────────────────────── */
-export const BUILD_ID = '2026-08-15-1';
+   BUILD_ID is a sha256 over the path + bytes of every file under
+   assets/, so it changes if and only if the assets change. A code-only
+   deploy keeps the same id and clients keep their cached models.
+
+   HTML and JS are `no-cache`, so a fresh page load always sees the
+   current id and therefore the current assets.
+   ═══════════════════════════════════════════════════════════════════ */
+export const BUILD_ID = '2026-08-14-9f1d289807df';
 
 // Append the build id to an asset URL, preserving any existing query.
 export function withVersion(url) {

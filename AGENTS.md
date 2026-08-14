@@ -6,7 +6,7 @@ Machine Wars — a **static, no-build** Three.js wave-survival shooter deployed 
 
 - Local: `python3 -m http.server 8931` from the repo **root**, then `http://localhost:8931/` (landing), `/play/` (hub), `/play/<scene>/` (arena). Serve from root — JS derives asset paths from `location.pathname`, so `file://` or a non-root base breaks loading. (No `python3` on the current Windows box; `npx http-server -p 8931` works the same.)
 - `window.AWDebug` (`src/main.js`) exposes `AW`, `WaveManager`, `camera`, `world`, `scene`, and a live `enemies` count — the way to drive/inspect the game from a headless browser. Note `AW.state` goes straight from `'loading'` to `'playing'` inside `startGame()`; there is no ready state to wait on, so click `#aw-start-btn` and then wait for `'playing'`. Under software GL (SwiftShader) the loop runs ~3 fps, so anything frame-timed needs seconds of real wall time, not milliseconds.
-- Deploy (Cloudflare Pages): `source ~/.nvm/nvm.sh && source .env && wrangler pages deploy . --project-name machinewars-site --commit-dirty=true`. `.env` holds `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (gitignored, never commit).
+- Deploy (Cloudflare Pages): **`node tools/deploy.mjs`** — regenerates the asset cache-busting id, stamps it into the HTML, then uploads. Use this rather than calling wrangler directly, or returning visitors may keep stale cached assets (see Caching). `--dry-run` stops before upload. It reads `.env` itself; `.env` holds `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (gitignored, never commit). The underlying command is `wrangler pages deploy . --project-name machinewars-site --commit-dirty=true`.
 - `?quality=low|medium|high|auto` and `?preserve` are supported game URLs (testing / screenshots).
 
 ## Page depths & relative paths (critical)
@@ -47,10 +47,16 @@ The source art is dark (mean luminance ~0.12), so the texture pass lifts RGB via
 
 Overwriting an asset in place at the same path would therefore never reach returning visitors — an `immutable` response isn't even revalidated until it expires. **Cache busting solves this**: every asset URL carries a `?v=<BUILD_ID>` query string, which changes the cache key without renaming files.
 
-- `src/version.js` holds `BUILD_ID` and the `withVersion()` helper. All runtime asset loads (GLBs in `scenes.js`/`enemies.js`, textures, scene preview images) are wrapped in `withVersion()`.
-- URLs baked into HTML are stamped by `node tools/stamp-assets.mjs`, which reads `BUILD_ID` and rewrites all 9 pages. It's idempotent — an existing `?v=` is replaced, not appended.
+**This is fully automatic — deploy with `node tools/deploy.mjs` and there is nothing to remember.**
 
-**On any deploy that changes a file under `assets/` in place: bump `BUILD_ID` in `src/version.js`, run `node tools/stamp-assets.mjs`, then deploy.** Skipping this means returning visitors keep the old assets.
+- `src/version.js` is **generated** (don't hand-edit). It holds `BUILD_ID` and the `withVersion()` helper. All runtime asset loads (GLBs in `scenes.js`/`enemies.js`, textures, scene preview images) are wrapped in `withVersion()`.
+- `tools/gen-version.mjs` derives `BUILD_ID` from a sha256 over the path + bytes of every file under `assets/`, then invokes `tools/stamp-assets.mjs` to rewrite the URLs baked into the 9 HTML pages. Both are idempotent.
+- `tools/deploy.mjs` runs the version step and then `wrangler pages deploy`, so the id can't be forgotten. `--dry-run` versions and stamps without uploading.
+- `tools/pre-commit` (install once per clone: `node tools/install-hooks.mjs`) regenerates the id whenever a commit touches `assets/`, and folds `version.js` + the HTML into that same commit.
+
+**Content-hash, not commit SHA — deliberately.** The id changes if and only if the assets change, so a code-only deploy keeps the same id and clients keep ~15MB of valid cached models. Hashing the commit would bust every cache on every deploy. It's also content-addressed rather than monotonic: reverting an asset returns to its previous id. Text assets (`.svg`, `.json`, …) are CRLF-normalized before hashing so the id is reproducible across Windows and Linux checkouts; binaries are hashed byte-for-byte.
+
+`node tools/gen-version.mjs --check` exits non-zero if the committed id is stale — useful in CI.
 
 The Draco decoder path in `src/gltf.js` is deliberately *not* versioned — it's a directory prefix DRACOLoader concatenates filenames onto, so a query string there would land mid-URL and 404. Those are pinned Three.js binaries; update them by bumping the vendored Three.js version instead. Same reasoning for the `/vendor/three/*` importmap entries.
 
