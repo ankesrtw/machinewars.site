@@ -33,7 +33,7 @@ function radialTexture(stops, size = 64) {
     return tex;
 }
 
-let _fireTex, _smokeTex, _sparkTex, _glowTex;
+let _fireTex, _smokeTex;
 export function fireTexture() {
     return _fireTex || (_fireTex = radialTexture([
         [0, 'rgba(255,230,140,1)'],
@@ -46,20 +46,6 @@ export function smokeTexture() {
         [0, 'rgba(170,160,150,0.9)'],
         [0.5, 'rgba(100,95,90,0.45)'],
         [1, 'rgba(60,55,50,0)'],
-    ]));
-}
-export function sparkTexture() {
-    return _sparkTex || (_sparkTex = radialTexture([
-        [0, 'rgba(255,240,180,1)'],
-        [0.5, 'rgba(255,200,90,0.7)'],
-        [1, 'rgba(255,140,0,0)'],
-    ], 32));
-}
-export function softGlowTexture() {
-    return _glowTex || (_glowTex = radialTexture([
-        [0, 'rgba(255,255,255,1)'],
-        [0.4, 'rgba(255,255,255,0.5)'],
-        [1, 'rgba(255,255,255,0)'],
     ]));
 }
 

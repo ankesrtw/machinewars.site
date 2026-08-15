@@ -90,7 +90,6 @@ const SCENE_CONFIGS = {
 
         // Perimeter
         perimeter: { halfW: 88, halfD: 88 },
-        gateDirection: 'south',
         gateHalfWidth: 8,
         wallColor: [0.25, 0.22, 0.18],
         pillarColor: [0.3, 0.25, 0.2],
@@ -325,7 +324,6 @@ const SCENE_CONFIGS = {
         },
 
         perimeter: { halfW: 88, halfD: 88 },
-        gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.22, 0.25, 0.30],
         pillarColor: [0.28, 0.31, 0.37],
@@ -491,7 +489,6 @@ const SCENE_CONFIGS = {
         },
 
         perimeter: { halfW: 80, halfD: 80 },
-        gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.4, 0.2, 0.12],
         pillarColor: [0.5, 0.25, 0.15],
@@ -665,7 +662,6 @@ const SCENE_CONFIGS = {
         },
 
         perimeter: { halfW: 80, halfD: 80 },
-        gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.10, 0.18, 0.14],
         pillarColor: [0.08, 0.22, 0.15],
@@ -834,7 +830,6 @@ const SCENE_CONFIGS = {
         },
 
         perimeter: { halfW: 88, halfD: 88 },
-        gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.5, 0.42, 0.28],
         pillarColor: [0.55, 0.45, 0.30],
@@ -1036,7 +1031,6 @@ const SCENE_CONFIGS = {
         },
 
         perimeter: { halfW: 88, halfD: 88 },
-        gateDirection: 'south',
         gateHalfWidth: 9,
         wallColor: [0.22, 0.20, 0.17],
         pillarColor: [0.28, 0.24, 0.20],
@@ -1216,7 +1210,6 @@ const SCENE_CONFIGS = {
         },
 
         perimeter: { halfW: 80, halfD: 80 },
-        gateDirection: 'south',
         gateHalfWidth: 8,
         wallColor: [0.20, 0.28, 0.14],
         pillarColor: [0.24, 0.32, 0.16],
@@ -1387,7 +1380,6 @@ const SCENE_CONFIGS = {
         },
 
         perimeter: { halfW: 88, halfD: 88 },
-        gateDirection: 'south',
         gateHalfWidth: 10,
         wallColor: [0.62, 0.68, 0.74],
         pillarColor: [0.70, 0.76, 0.82],

@@ -11,10 +11,11 @@ Machine Wars — a **static, no-build** Three.js wave-survival shooter deployed 
 
 - Local: `npx http-server -p 8931` from the repo **root** (no `python3` on this box), then `http://localhost:8931/` (landing), `/play/` (hub), `/play/<scene>/` (arena). Serve from root — JS derives asset paths from `location.pathname`, so `file://` or a non-root base breaks loading.
 - **Dev box has a real GPU (NVIDIA T1200 + Intel UHD) and 16 cores** — not software-rendered. Playwright driving the system's installed Chrome (`chromium.launch({ channel: 'chrome' })`, no bundled-Chromium download needed) gets real WebGL, so bloom/shadows/quality presets behave as they would for a real player; no more ~3fps SwiftShader tax. Since the repo has no `package.json` (no-build static site — don't add one), install Playwright in the session scratchpad (`npm init -y && npm install --no-save playwright`), never in the repo.
-- `window.AWDebug` (`src/main.js`) exposes `AW`, `WaveManager`, `camera`, `world`, `scene`, and a live `enemies` count — the way to drive/inspect the game from a headless browser. Note `AW.state` goes straight from `'loading'` to `'playing'` inside `startGame()`; there is no ready state to wait on — wait for `#aw-loading` to reach `display: none` (boot complete), then click `#aw-start-btn` and wait for `'playing'`.
+- `window.AWDebug` (`src/main.js`) exposes `AW`, `WaveManager`, `camera`, `world`, `scene`, a live `enemies` count, plus `hasLineOfSight`, `blockedAt`, `tryJump`, `transientCount` and `disposeScene` — the way to drive/inspect the game from a headless browser. Note `AW.state` goes straight from `'loading'` to `'playing'` inside `startGame()`; there is no ready state to wait on — wait for `#aw-loading` to reach `display: none` (boot complete), then click `#aw-start-btn` and wait for `'playing'`.
 - Multiple Playwright browser contexts (`browser.newContext()`) in one process are isolated per-origin storage but **share the GPU process** — a heavier viewport (e.g. 1400×900 with post-processing) measurably slows boot under concurrent contexts. Wait on a real readiness signal (`#aw-loading` display, or `waitForFunction` on a DOM value) rather than a fixed `waitForTimeout`, especially when parallelizing multiple pages/contexts at once.
 - Deploy (Cloudflare Pages): **`node tools/deploy.mjs`** — regenerates the asset cache-busting id, stamps it into the HTML, then uploads. Use this rather than calling wrangler directly, or returning visitors may keep stale cached assets (see Caching). `--dry-run` stops before upload. It reads `.env` itself; `.env` holds `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` (gitignored, never commit). The underlying command is `wrangler pages deploy . --project-name machinewars-site --commit-dirty=true`.
 - `?quality=low|medium|high|auto` and `?preserve` are supported game URLs (testing / screenshots).
+- **Direct navigation to a locked arena redirects to the hub** (`src/main.js`, `Save.isUnlocked`) — that is the campaign lock working, not a broken page. When testing a specific arena headlessly, seed `localStorage['mw.save.v1']` with every slug in `progress.arenasUnlocked` first, or you will silently be measuring `warzone` eight times.
 
 ## Page depths & relative paths (critical)
 
@@ -22,14 +23,29 @@ Pages live at three URL depths: root `/`, hub `/play/`, and arenas `/play/<slug>
 
 ## Adding a wavezone
 
-A scene exists as (1) a data object in `SCENE_CONFIGS` in `src/scenes-data.js` keyed by its URL slug, plus (2) a **full copy** of the game page at `play/<slug>/index.html` (scene is auto-detected from the last URL path segment in `detectSceneFromUrl()`, `src/main.js:169`; the hub's scene picker auto-links each config as `../<slug>/`). The per-arena pages are duplicated, hardcoded HTML — any change to the game page/HUD must be manually synced across all `play/*/index.html` copies. `warzone` is `DEFAULT_SCENE`.
+A scene exists as (1) a data object in `SCENE_CONFIGS` in `src/scenes-data.js` keyed by its URL slug, plus (2) a page at `play/<slug>/index.html` (scene is auto-detected from the last URL path segment in `detectSceneFromUrl()`, `src/main.js:169`; the hub's scene picker auto-links each config as `../<slug>/`). `warzone` is `DEFAULT_SCENE`.
+
+**The arena pages are generated — don't hand-edit them.** `node tools/gen-pages.mjs` renders all of them from `play/warzone/index.html` (the template) plus each scene's `name`/`description`. Edit the template, run the tool, and the rest follow; `--check` exits non-zero if any page is stale, `--dry-run` reports without writing. `tools/deploy.mjs` runs it automatically before the version step. Only five values vary per page (meta description, title, `data-scene`, the `ARENA — <LABEL>` caption, and the description repeated in the overlay); the label is the uppercased slug except for the overrides in `ARENA_LABEL_OVERRIDES`. A round-trip guard refuses to write if the template's markup drifts out from under the anchors.
+
+This replaced 8 hand-maintained copies that were ~95% byte-identical. They had already drifted: `play/space/index.html` served its icon and logo from a stale cache key because `tools/stamp-assets.mjs` carried a hardcoded slug list that never had `space` added. Both tools now derive their file lists from `SCENE_CONFIGS`, so a new arena can't be missed.
 
 ## Game modules (`src/`)
 
-- `main.js` — engine: renderer, post-processing (EffectComposer + UnrealBloom), render loop, input, weapons, quality presets. Exports game audio as `window.AWAudio`.
+- `main.js` — engine: renderer, post-processing (EffectComposer + UnrealBloom), render loop, input, player movement/stance, weapons, quality presets.
 - `scenes.js`/`scenes-data.js` — `World` builds the 3D environment from per-scene config; `scenes-data.js` holds all data (sky, lighting, ground, layout, spawn, GLB placements).
 - `enemies.js` — `WaveManager` + wave configs; takes its `context` (scene/camera/pools) via `setContext()` called from `main.js` during `buildScene()`. Pursuit tries the direct heading then progressively wider deflections; "stuck" is measured as **seconds without getting closer to the player** (`_noProgress`), not as a failed step — an enemy pacing along a wall always finds a free direction, so a can't-move test never fires and it patrols forever. Sustained no-progress escalates to a committed wall-follow, then a brief step-over hop (`_climb`, self-cancelling so robots don't end up hovering).
-- `fx.js`, `hud.js`, `audio.js`, `gltf.js` — particles/VFX, DOM HUD, procedural audio, shared DRACOLoader.
+- `projectiles.js` — pooled enemy bolts. The projectile *carries* the damage and applies it on impact; it substeps its motion so a fast round can't tunnel through thin cover in a long frame.
+- `fx.js`, `hud.js`, `audio.js`, `gltf.js`, `math.js` — particles/VFX, DOM HUD, procedural audio, shared DRACOLoader, shared numeric/colour helpers.
+
+## Combat model
+
+Enemy fire is **not hitscan**. `_updateWeapon()` (`src/enemies.js`) gates on line of sight, then telegraphs (eye flare + the robot planting for ~0.4–0.6s), then re-checks LOS at fire time — so breaking cover during the wind-up genuinely saves the player. Damage lands when the bolt hits. Contact damage is on a cooldown; enemies no longer destroy themselves on touch.
+
+`hasLineOfSight()` and `blockedAt()` (`src/main.js`) march the flat `AW.obstacles` array rather than raycasting the scene graph. `fireWeapon()` already pays for a full `intersectObjects(scene.children, true)` traversal **per pellet**, so adding a per-enemy-per-frame traversal would dominate the frame; LOS results are cached ~180ms per enemy.
+
+Obstacle records are `{x, z, hw, hd, h}`. **Movement collision (`checkCollision`) is deliberately 2D and ignores `h`** — a player on the ground is blocked by any footprint they overlap. `h` exists for things that pass *over* cover: sightlines and projectiles. Register every solid via `World._pushObstacle()`, which handles the rotated-AABB expansion; don't push raw records.
+
+Player movement has a real vertical axis (gravity, jump, crouch, sprint with stamina). Crouching shrinks the player's projectile hit radius, so it is mechanically meaningful. **Space is jump; pause is Escape / P.**
 
 ## Assets
 
@@ -134,9 +150,9 @@ Overwriting an asset in place at the same path would therefore never reach retur
 
 The Draco decoder path in `src/gltf.js` is deliberately *not* versioned — it's a directory prefix DRACOLoader concatenates filenames onto, so a query string there would land mid-URL and 404. Those are pinned Three.js binaries; update them by bumping the vendored Three.js version instead. Same reasoning for the `/vendor/three/*` importmap entries.
 
-## Music player (currently unwired)
+## Music (removed)
 
-`vendor/music/music-player.js` + `music/data/tracks-default.json` provide the soundtrack player (catalog fetched from `./music/data/tracks-default.json`, `API_BASE` relative to deploy root), and `game-music.js` is glue that injects a MUSIC button and pins the track. None of these are referenced by any HTML page yet — the game currently uses only procedural audio.
+The dead soundtrack player (`vendor/music/*`, `game-music.js`, and the `window.AWAudio` global that existed only to serve it) has been deleted — none of it was referenced by any HTML page, and `docs/track-b-content.md` says not to revive it. The Suno tracks under `music/` are untouched; the intended route is `Audio.playTrack()` in `src/audio.js` through the existing `_musicGain` node, not the old player.
 
 ## Repo state
 

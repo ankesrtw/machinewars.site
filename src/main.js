@@ -94,6 +94,10 @@ function fatalError(msg) {
 
 function animateLoadingBar(onComplete) {
     const fill = $('aw-loading-fill'); let pct = 0;
+    // Without the guard a missing element threw inside the interval every 80ms
+    // forever, and boot never handed control back — the cosmetic bar taking the
+    // whole game down with it. fatalError() above already checks for this.
+    if (!fill) { setTimeout(onComplete, 300); return; }
     const iv = setInterval(() => {
         pct += Math.random() * 14 + 4;
         fill.style.width = Math.min(pct, 95) + '%';
@@ -352,6 +356,10 @@ function buildScene(sceneId) {
     WaveManager.init();
 }
 
+// Not currently reached: each arena is its own page, so scenes are torn down by
+// navigation rather than in place. Kept as the correct teardown path (and
+// exported on AWDebug so it can be exercised) — deleting it would mean
+// rediscovering all of this the first time in-page scene switching lands.
 function disposeScene() {
     WaveManager.reset();
     _activePickups.length = 0;
@@ -359,6 +367,14 @@ function disposeScene() {
     AW.obstacles = []; AW.firePits = []; AW.explosiveBarrels = [];
     _lowHpActive = false; _heartbeatPhase = 0;
     const flash = $('hud-damage-flash'); if (flash) flash.style.opacity = '0';
+    // The composer owns UnrealBloomPass's render targets. World.dispose() never
+    // touched them, so a rebuild would leak a full set of RTs per scene.
+    if (composer) {
+        for (const pass of composer.passes) if (pass.dispose) pass.dispose();
+        if (composer.renderTarget1) composer.renderTarget1.dispose();
+        if (composer.renderTarget2) composer.renderTarget2.dispose();
+        composer = null; bloomPass = null;
+    }
     if (world) { world.dispose(); world = null; }
 }
 
@@ -1256,13 +1272,11 @@ window.togglePause = togglePause;
 window.toggleMute = toggleMute;
 window.toggleSettings = toggleSettings;
 // Expose the game's procedural audio for the global soundtrack glue (game-music.js).
-// Named AWAudio (not Audio) to avoid clobbering the native window.Audio constructor.
-window.AWAudio = Audio;
 // Debug/diagnostics surface (used by smoke tests; harmless in prod).
 window.AWDebug = {
     AW, WaveManager,
     // Combat/movement internals, for driving the game from a headless browser.
-    hasLineOfSight, blockedAt, tryJump,
+    hasLineOfSight, blockedAt, tryJump, disposeScene,
     get transientCount() { return _transients.length; },
     get enemies() { return WaveManager.activeEnemies.length; },
     get renderer() { return renderer; },
