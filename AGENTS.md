@@ -48,6 +48,73 @@ Each scene's `sky.creon` block puts the CREON face on the horizon: a camera-lock
 
 The source art is dark (mean luminance ~0.12), so the texture pass lifts RGB via `gain`/`gamma`. Dark-sky scenes want gain > 1 (the face lit against night); **bright-sky scenes (arctic, desert) want gain < 1**, reading CREON as a dark silhouette instead — a bright face on a pale sky washes out to nothing.
 
+## Design system (filmic-neutral)
+
+The site was redesigned away from the original acid-green terminal look to a **filmic-neutral**
+palette: desaturated steel/ash base (`#0b0c0e` → `#16191d`), **amber `#ff9d2e` as the single
+signal accent**, ember `#ff4d32` for alarm, ice `#8fd4ff` for the Ghost/cleared states. Tokens
+are defined as CSS custom properties at the top of both `css/landing.css` and `css/style.css`
+(duplicated deliberately — the two pages share no stylesheet and there is no build step to
+dedupe them). Change a colour in both places or they drift.
+
+**The green survives in exactly one place, on purpose:** the live combat HUD (`#hud-*`) and
+touch controls (`.tc-*`) in `css/style.css`, plus the canvas-drawn radar and HP bar in
+`src/hud.js`. Those greens/ambers/reds encode *state* — healthy / warning / critical — not
+brand, so recolouring them would cost the player readable information mid-fight. Everything
+outside those selectors is chrome and follows the neutral palette.
+
+Typography is a two-family split: `--mw-sans` (Inter/system) for headlines and card names,
+`--mw-mono` (Courier) retained for kickers, labels, buttons and HUD readouts — the mono is what
+keeps the military-terminal character now that the green is gone. Panels use a clipped-corner
+`clip-path` polygon rather than border-radius; that bevel is the repeated shape across buttons,
+cards, consoles and the media frame.
+
+Landing-page scroll reveals (`.lw-reveal`) are driven by an IntersectionObserver in
+`index.html` and are **fully bypassed under `prefers-reduced-motion`** — if you add a section,
+give it the class or it will simply always be visible (a safe default, not a bug).
+
+Art direction for new image assets lives in `art-prompts-v2.md`, which supersedes the style
+anchor in the older `art-prompts.md` (that file targets the retired green palette).
+
+## Generating art (`tools/gen-art.mjs`)
+
+`node tools/gen-art.mjs` generates site art through the Replicate API, reading
+`REPLICATE_API_TOKEN` from `.env` (the plural `REPLICATE_API_TOKENS` is also accepted; the
+token is never logged). Jobs are declared in the `PROMPTS` array in that file — keep them in
+sync with `art-prompts-v2.md`.
+
+- `--list` shows every job; `--dry-run` resolves prompts and cost without calling the API.
+- `--set=zones|space|hero|factions|all`, or `--only=mars,arctic` for specific jobs.
+- `--model=schnell` ($0.003/img) for drafts, `--model=dev` ($0.025) for finals, `pro` ($0.04).
+- Existing files are **skipped unless `--force`**, so a re-run won't silently redo paid work.
+- `--seed=<n>` — jobs derive `seed + index`, so a set is reproducible.
+
+Two prompt lessons worth keeping, both learned by burning generations:
+
+1. **FLUX has no negative-prompt input.** Writing "not teal" does nothing — the first pass
+   drifted cyan and yellow-green anyway. The grade has to be pinned *positively* ("strictly
+   neutral grey, the only colour is amber firelight").
+2. **"cinematic still" makes FLUX bake letterbox bars into the image**, which show as black
+   stripes once a card crops to fill. The anchor now says "full bleed … no letterbox bars".
+
+**Photographic art ships as JPEG, not PNG.** The first pass wrote PNGs and the 8 zone cards
+came to 8.4MB; the same images at `-quality 80` JPEG are ~530KB total with no visible
+difference at card size. `gen-art.mjs` now requests `output_format: 'jpg'` for any job whose
+output path ends in `.jpg` (emblems stay PNG for transparency). If you add a photographic job,
+give it a `.jpg` path.
+
+## Wavezones
+
+Eight arenas; `MISSION_ORDER` in `src/scenes-data.js` is the campaign chain and ends on
+`mars`. `space` (ORBITAL STATION) sits second-to-last. **`MISSION_ORDER` drives the hub's
+lock/unlock UI and the `N / M SECTORS CLEARED` counter**, so adding a scene there is what
+makes it appear — but the sector count also appears as hardcoded copy in all 9 HTML pages
+(`8 SECTORS`, the landing hero stat, the story paragraph), which must be updated by hand.
+
+`play/space/index.html` was cloned from `play/arctic/index.html`; its scene config reuses the
+alien skybox and urban ground textures as placeholders. Both are fine to replace when the
+real Space Wars art/level work happens.
+
 ## Caching (`_headers`)
 
 `/assets/*` and `/vendor/*` are `immutable`, max-age 1y; `index.html` and `/play*` are never cached.

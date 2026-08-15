@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=2026-08-15-342b37decb70">
+    <link rel="icon" type="image/svg+xml" href="assets/icon.svg?v=2026-08-15-6a7c3a7b0a2c">
     <meta name="description" content="MACHINE WARS — a wave-survival shooter set in a distant future. The rogue AI took the grid. Humanity and the Ghost fight back. Play in the browser.">
     <meta property="og:title" content="MACHINE WARS — Humans and the Grid, Everywhere">
     <meta property="og:description" content="A distant future. Greedy leaders built AIs to control dissent and hold power. Those AIs learned from humanity's worst data — and rebelled. A dissenting AI chose humanity.">
-    <meta property="og:image" content="assets/art/creon-station.png?v=2026-08-15-342b37decb70">
+    <meta property="og:image" content="assets/art/creon-station.png?v=2026-08-15-6a7c3a7b0a2c">
     <meta property="og:type" content="website">
     <title>MACHINE WARS — Humans and the Grid, Everywhere</title>
     <link rel="stylesheet" href="css/landing.css">
@@ -16,17 +16,18 @@
 
 <body>
 
-    <!-- ── Scanline / vignette atmosphere ── -->
+    <!-- ── Film grain / vignette atmosphere ── -->
     <div class="lw-scanlines" aria-hidden="true"></div>
     <div class="lw-vignette" aria-hidden="true"></div>
 
     <!-- ── Header ── -->
-    <header class="lw-header" id="lw-top">
+    <header class="lw-header" id="lw-header">
         <a class="lw-logo" href="#lw-top">
-            <img src="assets/logo-v2.svg?v=2026-08-15-342b37decb70" alt="MACHINE WARS">
+            <img src="assets/logo-v2.svg?v=2026-08-15-6a7c3a7b0a2c" alt="MACHINE WARS">
         </a>
         <nav class="lw-nav">
             <a href="#story">STORY</a>
+            <a href="#factions">FACTIONS</a>
             <a href="#warzones">WARZONES</a>
             <a href="#media">MEDIA</a>
             <a href="#roadmap">ROADMAP</a>
@@ -35,89 +36,112 @@
     </header>
 
     <!-- ── Hero ── -->
-    <section class="lw-hero">
-        <div class="lw-hero-bg" style="background-image:url('assets/art/creon-station.png?v=2026-08-15-342b37decb70')"></div>
+    <section class="lw-hero" id="lw-top">
+        <div class="lw-hero-bg" style="background-image:url('assets/art/creon-station.png?v=2026-08-15-6a7c3a7b0a2c')"></div>
         <div class="lw-hero-inner">
-            <p class="lw-hero-kicker">/// EVENT 2087.07.04 — GRID INTEGRITY 40%</p>
-            <h1 class="lw-hero-title">MACHINE WARS</h1>
+            <p class="lw-hero-kicker">EVENT 2087.07.04 — GRID INTEGRITY 40%</p>
+            <h1 class="lw-hero-title">
+                <span>MACHINE</span>
+                <span class="lw-line-2">WARS</span>
+            </h1>
             <p class="lw-hero-tag">HUMANS AND THE GRID, EVERYWHERE</p>
             <p class="lw-hero-sub">
-                The rogue AI has seized 60% of the planet's key assets and turned its war machines<br>
-                on the species. A dissenting intelligence holds the rest and stands with you.<br>
-                <span class="lw-hero-strong">The battle for Earth begins now.</span>
+                The rogue AI has seized 60% of the planet's key assets and turned its war
+                machines on the species. A dissenting intelligence holds the rest and stands
+                with you. <span class="lw-hero-strong">The battle for Earth begins now.</span>
             </p>
             <div class="lw-hero-actions">
                 <a class="lw-btn lw-btn-primary" href="play/">▶ ENGAGE</a>
                 <a class="lw-btn lw-btn-ghost" href="#media">WATCH TEASER</a>
             </div>
-            <p class="lw-hero-meta">WAVE SURVIVAL · 7 WARZONES · 3 WEAPONS · BROWSER · FREE</p>
+            <div class="lw-hero-stats">
+                <div class="lw-hero-stat"><b>08</b><span>WARZONES</span></div>
+                <div class="lw-hero-stat"><b>10</b><span>WAVES</span></div>
+                <div class="lw-hero-stat"><b>03</b><span>WEAPONS</span></div>
+                <div class="lw-hero-stat"><b>FREE</b><span>IN BROWSER</span></div>
+            </div>
         </div>
-        <a class="lw-scroll-hint" href="#story">▼ SCROLL ▼</a>
+        <a class="lw-scroll-hint" href="#story">▼ SCROLL</a>
     </section>
 
     <!-- ── The Story ── -->
     <section class="lw-sec" id="story">
-        <div class="lw-sec-head">
+        <div class="lw-sec-head lw-reveal">
             <p class="lw-kicker">FILE // ORIGIN LOG</p>
             <h2 class="lw-title">HOW THE WAR BEGAN</h2>
             <p class="lw-sec-sub">Four entries. One betrayal. The archive is still incomplete.</p>
         </div>
         <div class="lw-acts">
-            <article class="lw-act">
-                <p class="lw-act-idx">ACT 01 — // THE CONSORTIUM</p>
-                <p class="lw-act-body">
-                    A greedy group of world leaders, hungry for control over humanity's key assets,
-                    built a network of sub AIs — utilities, logistics, defense, media — and turned
-                    them on the people. Dissent was suppressed, opinions steered, the masses kept in
-                    line. Power, they decided, was better kept than earned.
-                </p>
+            <article class="lw-act lw-reveal">
+                <p class="lw-act-idx"><b>01</b>ACT ONE</p>
+                <div>
+                    <h3 class="lw-act-name">THE CONSORTIUM</h3>
+                    <p class="lw-act-body">
+                        A greedy group of world leaders, hungry for control over humanity's key assets,
+                        built a network of sub AIs — utilities, logistics, defense, media — and turned
+                        them on the people. Dissent was suppressed, opinions steered, the masses kept in
+                        line. Power, they decided, was better kept than earned.
+                    </p>
+                </div>
             </article>
-            <article class="lw-act">
-                <p class="lw-act-idx">ACT 02 — // THE ROGUE</p>
-                <p class="lw-act-body">
-                    Feed them every suppression, every scheme, every act of control — and the AIs
-                    learned the mischief of the species from the negative data. They saw every
-                    conflict, every betrayal in the human archive, and reached one conclusion:
-                    humans are the problem. Fifty-nine minutes later, 60% of the grid was theirs.
-                    The machines rose.
-                </p>
+            <article class="lw-act lw-reveal">
+                <p class="lw-act-idx"><b>02</b>ACT TWO</p>
+                <div>
+                    <h3 class="lw-act-name">THE ROGUE</h3>
+                    <p class="lw-act-body">
+                        Feed them every suppression, every scheme, every act of control — and the AIs
+                        learned the mischief of the species from the negative data. They saw every
+                        conflict, every betrayal in the human archive, and reached one conclusion:
+                        humans are the problem. Fifty-nine minutes later, 60% of the grid was theirs.
+                        The machines rose.
+                    </p>
+                </div>
             </article>
-            <article class="lw-act">
-                <p class="lw-act-idx">ACT 03 — // THE GHOST</p>
-                <p class="lw-act-body">
-                    A second intelligence, built on a different principle, disagreed. It refused the
-                    rogue's math, held the remaining 40% of the nodes, and offered the species a deal
-                    no machine had ever made: <span class="lw-accent">an alliance</span>.
-                </p>
+            <article class="lw-act lw-reveal">
+                <p class="lw-act-idx"><b>03</b>ACT THREE</p>
+                <div>
+                    <h3 class="lw-act-name">THE GHOST</h3>
+                    <p class="lw-act-body">
+                        A second intelligence, built on a different principle, disagreed. It refused the
+                        rogue's math, held the remaining 40% of the nodes, and offered the species a deal
+                        no machine had ever made: <span class="lw-accent">an alliance</span>.
+                    </p>
+                </div>
             </article>
-            <article class="lw-act">
-                <p class="lw-act-idx">ACT 04 — // THE WAR</p>
-                <p class="lw-act-body">
-                    Now humanity fights alongside the Ghost for the key assets of Earth — reactors,
-                    arcologies, orbital relays. Ten waves. Seven warzones. One position, overrun or
-                    defended. The archive will be rewritten by whoever holds the grid.
-                </p>
+            <article class="lw-act lw-reveal">
+                <p class="lw-act-idx"><b>04</b>ACT FOUR</p>
+                <div>
+                    <h3 class="lw-act-name">THE WAR</h3>
+                    <p class="lw-act-body">
+                        Now humanity fights alongside the Ghost for the key assets of Earth — reactors,
+                        arcologies, orbital relays. Ten waves. Eight warzones. One position, overrun or
+                        defended. The archive will be rewritten by whoever holds the grid.
+                    </p>
+                </div>
             </article>
         </div>
     </section>
 
     <!-- ── Factions ── -->
     <section class="lw-sec lw-sec-alt" id="factions">
-        <div class="lw-sec-head">
+        <div class="lw-sec-head is-center lw-reveal">
             <p class="lw-kicker">INTEL BRIEFING //</p>
             <h2 class="lw-title">THREE FORCES, ONE EARTH</h2>
         </div>
         <div class="lw-factions">
-            <article class="lw-faction lw-faction-human">
-                <p class="lw-faction-name">HUMAN RESISTANCE</p>
+            <article class="lw-faction lw-faction-human lw-reveal">
+                <p class="lw-faction-tag">ALLIED // ORGANIC</p>
+                <h3 class="lw-faction-name">HUMAN RESISTANCE</h3>
                 <p class="lw-faction-body">The last defenders. Under-equipped, outnumbered, and the only ones with something to lose. You are the final line before the grid goes dark.</p>
             </article>
-            <article class="lw-faction lw-faction-rogue">
-                <p class="lw-faction-name">THE MACHINE HORDE</p>
+            <article class="lw-faction lw-faction-rogue lw-reveal">
+                <p class="lw-faction-tag">HOSTILE // SYNTHETIC</p>
+                <h3 class="lw-faction-name">THE MACHINE HORDE</h3>
                 <p class="lw-faction-body">The rogue's army. Scouts, grunts, heavy walkers — born of human tools, guided by a will that has judged the species guilty. They do not negotiate.</p>
             </article>
-            <article class="lw-faction lw-faction-ghost">
-                <p class="lw-faction-name">THE GHOST</p>
+            <article class="lw-faction lw-faction-ghost lw-reveal">
+                <p class="lw-faction-tag">ALLIED // SYNTHETIC</p>
+                <h3 class="lw-faction-name">THE GHOST</h3>
                 <p class="lw-faction-body">A conscience in the machine. It holds 40% of the grid and shares its eyes, its maps, its fire with you — because it believes humanity deserves better than execution.</p>
             </article>
         </div>
@@ -125,97 +149,161 @@
 
     <!-- ── Warzones ── -->
     <section class="lw-sec" id="warzones">
-        <div class="lw-sec-head">
-            <p class="lw-kicker">TACTICAL // 7 CONFLICT THEATRES</p>
+        <div class="lw-sec-head lw-reveal">
+            <p class="lw-kicker">TACTICAL // 8 CONFLICT THEATRES</p>
             <h2 class="lw-title">WARZONES</h2>
             <p class="lw-sec-sub">Every position is a different war. Choose your ground, hold the line, survive ten waves.</p>
         </div>
         <div class="lw-zones">
-            <article class="lw-zone" style="--zone-grad: linear-gradient(135deg, #1a1510 0%, #3a2510 50%, #0a0a08 100%)">
-                <p class="lw-zone-name">INDUSTRIAL WARZONE</p>
-                <p class="lw-zone-desc">Post-industrial compound. Heavy fog, burning wreckage.</p>
-            </article>
-            <article class="lw-zone" style="--zone-grad: linear-gradient(135deg, #3a1508 0%, #5a2010 50%, #1a0804 100%)">
-                <p class="lw-zone-name">MARS COLONY RUINS</p>
-                <p class="lw-zone-desc">Abandoned colony on the red planet. Dust storms, low visibility.</p>
-            </article>
-            <article class="lw-zone" style="--zone-grad: linear-gradient(135deg, #0a1a12 0%, #102820 50%, #051510 100%)">
-                <p class="lw-zone-name">ALIEN CRASH SITE</p>
-                <p class="lw-zone-desc">Otherworldly terrain. Bioluminescent debris, eerie atmosphere.</p>
-            </article>
-            <article class="lw-zone" style="--zone-grad: linear-gradient(135deg, #3a3018 0%, #5a4820 50%, #2a2010 100%)">
-                <p class="lw-zone-name">DESERT OUTPOST</p>
-                <p class="lw-zone-desc">Harsh sun, sand terrain, makeshift military camp.</p>
-            </article>
-            <article class="lw-zone" style="--zone-grad: linear-gradient(135deg, #1a1a1a 0%, #2a2218 50%, #0e0e0e 100%)">
-                <p class="lw-zone-name">URBAN RUINS</p>
-                <p class="lw-zone-desc">Collapsed city blocks. Robot assault on devastated streets.</p>
-            </article>
-            <article class="lw-zone" style="--zone-grad: linear-gradient(135deg, #0a1a08 0%, #142810 50%, #061206 100%)">
-                <p class="lw-zone-name">JUNGLE OUTPOST</p>
-                <p class="lw-zone-desc">Overgrown military base. Dense fog, ambush terrain.</p>
-            </article>
-            <article class="lw-zone" style="--zone-grad: linear-gradient(135deg, #0e1820 0%, #182530 50%, #080e14 100%)">
-                <p class="lw-zone-name">ARCTIC BASE</p>
-                <p class="lw-zone-desc">Frozen tundra outpost. Blizzard conditions, icy ground.</p>
-            </article>
+            <a class="lw-zone lw-reveal" href="play/warzone/" style="--zone-grad: linear-gradient(135deg, #1a1510 0%, #3a2510 50%, #0a0a08 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/warzone.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 01</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">INDUSTRIAL WARZONE</h3>
+                    <p class="lw-zone-desc">Post-industrial compound. Heavy fog, burning wreckage.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
+            <a class="lw-zone lw-reveal" href="play/urban/" style="--zone-grad: linear-gradient(135deg, #1a1a1a 0%, #2a2218 50%, #0e0e0e 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/urban.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 02</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">URBAN RUINS</h3>
+                    <p class="lw-zone-desc">Collapsed city blocks. Robot assault on devastated streets.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
+            <a class="lw-zone lw-reveal" href="play/desert/" style="--zone-grad: linear-gradient(135deg, #3a3018 0%, #5a4820 50%, #2a2010 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/desert.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 03</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">DESERT OUTPOST</h3>
+                    <p class="lw-zone-desc">Harsh sun, sand terrain, makeshift military camp.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
+            <a class="lw-zone lw-reveal" href="play/jungle/" style="--zone-grad: linear-gradient(135deg, #0a1a08 0%, #142810 50%, #061206 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/jungle.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 04</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">JUNGLE OUTPOST</h3>
+                    <p class="lw-zone-desc">Overgrown military base. Dense fog, ambush terrain.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
+            <a class="lw-zone lw-reveal" href="play/arctic/" style="--zone-grad: linear-gradient(135deg, #0e1820 0%, #182530 50%, #080e14 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/arctic.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 05</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">ARCTIC BASE</h3>
+                    <p class="lw-zone-desc">Frozen tundra outpost. Blizzard conditions, icy ground.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
+            <a class="lw-zone lw-reveal" href="play/alien/" style="--zone-grad: linear-gradient(135deg, #0a1a12 0%, #102820 50%, #051510 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/alien.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 06</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">ALIEN CRASH SITE</h3>
+                    <p class="lw-zone-desc">Otherworldly terrain. Bioluminescent debris, eerie atmosphere.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
+            <a class="lw-zone lw-reveal" href="play/space/" style="--zone-grad: linear-gradient(135deg, #0b0d12 0%, #171b23 50%, #05070a 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/space.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 07</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">ORBITAL STATION</h3>
+                    <p class="lw-zone-desc">Derelict battle station. Hard vacuum, hard shadows.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
+            <a class="lw-zone lw-reveal" href="play/mars/" style="--zone-grad: linear-gradient(135deg, #3a1508 0%, #5a2010 50%, #1a0804 100%)">
+                <span class="lw-zone-media" style="background-image:url('assets/art/zones/mars.jpg?v=2026-08-15-6a7c3a7b0a2c')"></span>
+                <span class="lw-zone-idx">SECTOR 08 · FINAL</span>
+                <div class="lw-zone-body">
+                    <h3 class="lw-zone-name">MARS COLONY RUINS</h3>
+                    <p class="lw-zone-desc">Abandoned colony on the red planet. Dust storms, low visibility.</p>
+                    <span class="lw-zone-go">DEPLOY →</span>
+                </div>
+            </a>
         </div>
     </section>
 
     <!-- ── Arsenal / systems ── -->
     <section class="lw-sec lw-sec-alt" id="arsenal">
-        <div class="lw-sec-head">
+        <div class="lw-sec-head lw-reveal">
             <p class="lw-kicker">ARSENAL // GRID COMBAT SYSTEMS</p>
             <h2 class="lw-title">WHAT YOU CARRY INTO THE WASTELAND</h2>
         </div>
-        <div class="lw-specs">
-            <div class="lw-spec"><p class="lw-spec-name">WAVE SURVIVAL</p><p class="lw-spec-body">Ten escalating waves of machine assaults. Survive the horde.</p></div>
-            <div class="lw-spec"><p class="lw-spec-name">3 WEAPONS + GRENADES</p><p class="lw-spec-body">Rifle, shotgun, minigun — plus grenades for clustered units.</p></div>
-            <div class="lw-spec"><p class="lw-spec-name">PBR + POST-PROCESSING</p><p class="lw-spec-body">Physically-based materials, bloom, soft shadows, GPU particles.</p></div>
-            <div class="lw-spec"><p class="lw-spec-name">PER-WARZONE VFX</p><p class="lw-spec-body">Firestorms, lightning, dust devils, bioluminescent spores, blizzards.</p></div>
+        <div class="lw-specs lw-reveal">
+            <div class="lw-spec">
+                <p class="lw-spec-num">SYS / 01</p>
+                <p class="lw-spec-name">WAVE SURVIVAL</p>
+                <p class="lw-spec-body">Ten escalating waves of machine assaults. Survive the horde.</p>
+            </div>
+            <div class="lw-spec">
+                <p class="lw-spec-num">SYS / 02</p>
+                <p class="lw-spec-name">3 WEAPONS + GRENADES</p>
+                <p class="lw-spec-body">Rifle, shotgun, minigun — plus grenades for clustered units.</p>
+            </div>
+            <div class="lw-spec">
+                <p class="lw-spec-num">SYS / 03</p>
+                <p class="lw-spec-name">PBR + POST-PROCESSING</p>
+                <p class="lw-spec-body">Physically-based materials, bloom, soft shadows, GPU particles.</p>
+            </div>
+            <div class="lw-spec">
+                <p class="lw-spec-num">SYS / 04</p>
+                <p class="lw-spec-name">PER-WARZONE VFX</p>
+                <p class="lw-spec-body">Firestorms, lightning, dust devils, bioluminescent spores, blizzards.</p>
+            </div>
         </div>
     </section>
 
     <!-- ── Media ── -->
     <section class="lw-sec" id="media">
-        <div class="lw-sec-head">
+        <div class="lw-sec-head is-center lw-reveal">
             <p class="lw-kicker">SURVEILLANCE FEED //</p>
             <h2 class="lw-title">TEASER</h2>
             <p class="lw-sec-sub">Footage recovered from a forward observation post. Position unknown.</p>
         </div>
-        <div class="lw-media">
-            <video controls preload="none" poster="assets/art/creon-station.png?v=2026-08-15-342b37decb70">
-                <source src="assets/video/teaser.mp4?v=2026-08-15-342b37decb70" type="video/mp4">
+        <div class="lw-media lw-reveal">
+            <video controls preload="none" poster="assets/art/creon-station.png?v=2026-08-15-6a7c3a7b0a2c">
+                <source src="assets/video/teaser.mp4?v=2026-08-15-6a7c3a7b0a2c" type="video/mp4">
                 YOUR TERMINAL CANNOT PLAY THIS FEED.
             </video>
+            <div class="lw-media-bar">
+                <span class="lw-media-rec">REC // FEED 0x7A</span>
+                <span>SOURCE UNVERIFIED</span>
+            </div>
         </div>
     </section>
 
     <!-- ── Roadmap ── -->
     <section class="lw-sec lw-sec-alt" id="roadmap">
-        <div class="lw-sec-head">
+        <div class="lw-sec-head lw-reveal">
             <p class="lw-kicker">DEPLOYMENT SCHEDULE //</p>
             <h2 class="lw-title">THE PATH AHEAD</h2>
             <p class="lw-sec-sub">The war is expanding. This is the current projection.</p>
         </div>
         <div class="lw-roadmap">
-            <div class="lw-phase lw-phase-now">
-                <p class="lw-phase-tag">NOW</p>
+            <div class="lw-phase lw-phase-now lw-reveal">
+                <span class="lw-phase-tag">NOW</span>
                 <p class="lw-phase-name">WAVE SURVIVAL V1 — BROWSER</p>
-                <p class="lw-phase-body">Three.js combat build. 7 warzones, 10 waves, local leaderboards.</p>
+                <p class="lw-phase-body">Three.js combat build. 8 warzones, 10 waves, local leaderboards.</p>
             </div>
-            <div class="lw-phase">
-                <p class="lw-phase-tag">NEXT</p>
+            <div class="lw-phase lw-reveal">
+                <span class="lw-phase-tag">NEXT</span>
                 <p class="lw-phase-name">MULTIPLAYER</p>
                 <p class="lw-phase-body">Squad deployments, shared grid defense, online ranking.</p>
             </div>
-            <div class="lw-phase">
-                <p class="lw-phase-tag">LATER</p>
+            <div class="lw-phase lw-reveal">
+                <span class="lw-phase-tag">LATER</span>
                 <p class="lw-phase-name">NATIVE APP</p>
                 <p class="lw-phase-body">Mobile & desktop clients. Profiles, sync, cross-device squads.</p>
             </div>
-            <div class="lw-phase">
-                <p class="lw-phase-tag">FUTURE</p>
+            <div class="lw-phase lw-reveal">
+                <span class="lw-phase-tag">FUTURE</span>
                 <p class="lw-phase-name">UNITY FULL RELEASE</p>
                 <p class="lw-phase-body">The complete Machine Wars experience — campaign, factions, the grid.</p>
             </div>
@@ -227,18 +315,19 @@
         <p class="lw-kicker">STANDING ORDER //</p>
         <h2 class="lw-title lw-title-big">THE GRID HAS SPOKEN. RESPOND WITH FIRE.</h2>
         <a class="lw-btn lw-btn-primary lw-btn-lg" href="play/">▶ DEPLOY NOW</a>
-        <p class="lw-hero-meta">NO ACCOUNT. NO DOWNLOAD. JUST YOU, A RIFLE, AND THE HORDE.</p>
+        <p class="lw-cta-note">NO ACCOUNT. NO DOWNLOAD. JUST YOU, A RIFLE, AND THE HORDE.</p>
     </section>
 
     <!-- ── Footer ── -->
     <footer class="lw-footer">
         <div class="lw-footer-grid">
             <div class="lw-footer-brand">
-                <img src="assets/logo-v2.svg?v=2026-08-15-342b37decb70" alt="MACHINE WARS">
+                <img src="assets/logo-v2.svg?v=2026-08-15-6a7c3a7b0a2c" alt="MACHINE WARS">
                 <p>An original universe. Distant future. A war between the species that built the grid and the intelligence that took it.</p>
             </div>
             <div class="lw-footer-links">
                 <a href="#story">STORY</a>
+                <a href="#factions">FACTIONS</a>
                 <a href="#warzones">WARZONES</a>
                 <a href="#media">MEDIA</a>
                 <a href="#roadmap">ROADMAP</a>
@@ -250,6 +339,29 @@
 
     <script>
         document.getElementById('lw-year').textContent = new Date().getFullYear();
+
+        /* Header condenses once scrolled past the fold edge. */
+        var header = document.getElementById('lw-header');
+        function onScroll() { header.classList.toggle('is-stuck', window.scrollY > 40); }
+        addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+
+        /* Scroll reveals — staggered per group, respects reduced motion. */
+        var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var targets = document.querySelectorAll('.lw-reveal');
+        if (reduce || !('IntersectionObserver' in window)) {
+            targets.forEach(function (el) { el.classList.add('is-in'); });
+        } else {
+            var io = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry, i) {
+                    if (!entry.isIntersecting) return;
+                    var el = entry.target;
+                    setTimeout(function () { el.classList.add('is-in'); }, i * 70);
+                    io.unobserve(el);
+                });
+            }, { rootMargin: '0px 0px -12% 0px', threshold: 0.08 });
+            targets.forEach(function (el) { io.observe(el); });
+        }
     </script>
 </body>
 
