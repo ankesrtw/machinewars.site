@@ -53,6 +53,12 @@ body {
 /* ── Viewport ── */
 #aw-canvas { position: fixed; top: 44px; left: 0; width: 100%; height: calc(100% - 44px); display: block; outline: none; }
 
+/* ── App mode (Capacitor/Electron wrapper): no web chrome, canvas owns the
+   full window. Toggled by main.js via ?app=1 / window.MW_NATIVE. ── */
+body.mw-app-mode .aw-header { display: none; }
+body.mw-app-mode #aw-canvas { top: 0; height: 100%; }
+body.mw-app-mode #aw-loading { top: 0; }
+
 /* ── Loading ── */
 #aw-loading {
     position: fixed; top: 44px; left: 0; right: 0; bottom: 0; background: #000;
@@ -161,8 +167,27 @@ body {
 .aw-play-btn:active { transform: translateY(0) scale(0.97); }
 
 /* ── Scene picker / arenas ── */
-.aw-scene-picker-label { font-size: 10px; letter-spacing: 0.3em; color: rgba(255,255,255,0.4); text-transform: uppercase; width: 100%; text-align: center; margin-top: 4px; }
-.aw-scene-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin: 4px 0; width: 100%; }
+.aw-scene-picker-header {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    width: 100%; margin-top: 4px; flex-wrap: wrap;
+}
+.aw-scene-picker-label { font-size: 10px; letter-spacing: 0.3em; color: rgba(255,255,255,0.4); text-transform: uppercase; }
+.aw-scene-picker-progress {
+    font-size: 9px; letter-spacing: 0.18em; color: rgba(0,255,136,0.7);
+    border: 1px solid rgba(0,255,136,0.25); padding: 3px 10px; background: rgba(0,20,10,0.5);
+}
+.aw-scene-picker {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px; margin: 10px 0 4px; width: 100%; position: relative;
+    counter-reset: none;
+}
+/* Mission-chain rail: a connecting line running through the row of cards,
+   reinforcing this is a sequence to clear, not an unordered menu. */
+.aw-scene-picker::before {
+    content: ''; position: absolute; left: 4%; right: 4%; top: 22px; height: 1px;
+    background: repeating-linear-gradient(90deg, rgba(0,255,136,0.28) 0 8px, transparent 8px 14px);
+    z-index: 0; pointer-events: none;
+}
 .aw-scene-card {
     display: flex; flex-direction: column; position: relative;
     min-height: 128px; padding: 0 0 10px; overflow: hidden;
@@ -200,6 +225,34 @@ body {
     padding: 4px 0; text-align: center; transition: all 0.2s;
 }
 .aw-scene-card:hover .aw-scene-card-enter, .aw-scene-card.selected .aw-scene-card-enter { background: #00ff88; color: #000; box-shadow: 0 0 14px rgba(0,255,136,0.5); }
+
+/* ── Cleared badge ── */
+.aw-scene-card.cleared { border-color: rgba(57,197,255,0.45); }
+.aw-scene-card.cleared .aw-scene-card-sector { background: rgba(57,197,255,0.9); }
+.aw-scene-card-cleared {
+    position: absolute; top: 8px; left: 8px; z-index: 1;
+    font-size: 8px; letter-spacing: 0.1em; color: #39c5ff; background: rgba(6,16,24,0.85);
+    border: 1px solid rgba(57,197,255,0.5); padding: 2px 6px; border-radius: 2px; font-weight: bold;
+}
+.aw-scene-card.cleared .aw-scene-card-enter { border-color: rgba(57,197,255,0.4); color: rgba(57,197,255,0.85); }
+.aw-scene-card.cleared:hover .aw-scene-card-enter { background: #39c5ff; color: #000; box-shadow: 0 0 14px rgba(57,197,255,0.5); }
+
+/* ── Locked cards ── */
+.aw-scene-card.locked {
+    cursor: not-allowed; border-color: rgba(255,255,255,0.1);
+    filter: grayscale(0.85) brightness(0.55);
+}
+.aw-scene-card.locked:hover { transform: none; border-color: rgba(255,255,255,0.16); box-shadow: none; }
+.aw-scene-card.locked .aw-scene-card-scan { display: none; }
+.aw-scene-card.locked .aw-scene-card-sector { background: rgba(255,255,255,0.25); color: rgba(0,0,0,0.6); }
+.aw-scene-card-lock {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -70%);
+    z-index: 1; font-size: 26px; opacity: 0.85; filter: grayscale(1) drop-shadow(0 0 8px rgba(0,0,0,0.8));
+}
+.aw-scene-card-lockmsg {
+    position: relative; z-index: 1; margin: auto 10px 0; padding-bottom: 2px;
+    font-size: 8px; letter-spacing: 0.12em; color: rgba(255,255,255,0.55); text-align: center; line-height: 1.5;
+}
 
 /* ── Controls hint ── */
 .aw-controls-hint {

@@ -5,7 +5,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { loadGLB } from './gltf.js';
-import { SCENE_CONFIGS, DEFAULT_SCENE, SCENE_MODEL_BASE, SCENE_TEXTURE_BASE, ASSET_BASE } from './scenes-data.js';
+import { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER, SCENE_MODEL_BASE, SCENE_TEXTURE_BASE, ASSET_BASE } from './scenes-data.js';
 import { withVersion } from './version.js';
 import {
     seededRandom, proceduralGroundTexture, proceduralSkyTexture,
@@ -13,7 +13,7 @@ import {
     concreteTexture,
 } from './fx.js';
 
-export { SCENE_CONFIGS, DEFAULT_SCENE };
+export { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER };
 
 const _texLoader = new THREE.TextureLoader();
 

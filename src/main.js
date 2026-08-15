@@ -9,11 +9,18 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-import { World, SCENE_CONFIGS, DEFAULT_SCENE } from './scenes.js';
+import { World, SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER } from './scenes.js';
 import { WaveManager, WAVE_CONFIGS, setContext } from './enemies.js';
 import { HUD } from './hud.js';
 import { Audio } from './audio.js';
 import { withVersion, BUILD_ID } from './version.js';
+import { Save } from './save.js';
+
+// App-mode: set by a native wrapper (Capacitor/Electron) via ?app=1 or by
+// presetting window.MW_NATIVE before this module loads. Hides the web-only
+// header/ALL-SCENES chrome and gives the canvas the full window instead of
+// `window.innerHeight - header height` (there is no header to subtract).
+const IS_APP_MODE = window.MW_NATIVE === true || new URLSearchParams(location.search).has('app');
 
 // ── Quality presets ──────────────────────────────────────────────────
 const QUALITY_PRESETS = {
@@ -93,6 +100,7 @@ function animateLoadingBar(onComplete) {
 // height or the drawing buffer ends up smaller than the area it covers, leaving
 // dead black bands. Measure the header instead of hardcoding it.
 function viewportSize() {
+    if (IS_APP_MODE) return { w: window.innerWidth, h: Math.max(1, window.innerHeight) };
     const header = document.querySelector('.aw-header');
     const top = header ? Math.round(header.getBoundingClientRect().height) : 44;
     return { w: window.innerWidth, h: Math.max(1, window.innerHeight - top) };
@@ -154,6 +162,7 @@ function applyQuality(sel) {
 
 // ── Engine init ────────────────────────────────────────────────────────
 function initEngine() {
+    if (IS_APP_MODE) document.body.classList.add('mw-app-mode');
     canvas = $('aw-canvas');
     const _preserve = new URLSearchParams(location.search).has('preserve');
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: _preserve });
@@ -170,12 +179,23 @@ function initEngine() {
     const urlScene = detectSceneFromUrl();
     if (urlScene) AW.currentScene = urlScene;
 
+    // Direct navigation (bookmark, typed URL, share link) to a locked arena —
+    // send the player back to the campaign hub instead of silently letting
+    // them play out of order. Arena pages always live one level below /play/.
+    if (urlScene && !Save.isUnlocked(urlScene)) {
+        location.href = '../' + (new URLSearchParams(location.search).has('app') ? '?app=1' : '');
+        return;
+    }
+
     buildScenePicker();
     const q = $('aw-quality');
-    // Allow ?quality=low|medium|high|auto to override (handy for testing / low-end devices).
+    // Priority: ?quality= override (testing/low-end devices) → touch default
+    // (auto → low) → the player's saved preference → the HTML default.
     const urlQ = new URLSearchParams(location.search).get('quality');
+    const savedQuality = Save.load().settings.quality;
     if (urlQ && q) q.value = urlQ;
-    else if (IS_TOUCH && q) q.value = 'auto'; // phones/tablets default to auto → low
+    else if (IS_TOUCH && q) q.value = 'auto';
+    else if (savedQuality && q) q.value = savedQuality;
     applyQuality(q ? q.value : 'high');
 
     buildScene(AW.currentScene);
@@ -207,43 +227,81 @@ function onResize() {
     if (composer) composer.setSize(w, h);
 }
 
-function detectSceneFromUrl() {
-    const segs = (location.pathname || '').split('/').filter(Boolean);
+// Path segments with a '.' (e.g. 'index.html') are never a scene slug — under
+// Capacitor/Electron the URL ends in a literal filename, not a clean slug.
+function pathSceneSegment() {
+    const segs = (location.pathname || '').split('/').filter((s) => s && !s.includes('.'));
     const last = segs[segs.length - 1] || '';
     return (last && SCENE_CONFIGS[last]) ? last : null;
 }
 
+// Tiered resolve so this keeps working under any URL scheme a wrapper uses:
+// explicit body flag → query override (testing/share links) → path segment
+// → default. buildScenePicker() shares pathSceneSegment() for consistency.
+function detectSceneFromUrl() {
+    const bodyScene = document.body && document.body.dataset.scene;
+    if (bodyScene && SCENE_CONFIGS[bodyScene]) return bodyScene;
+    const qScene = new URLSearchParams(location.search).get('scene');
+    if (qScene && SCENE_CONFIGS[qScene]) return qScene;
+    return pathSceneSegment();
+}
+
 function buildScenePicker() {
     const picker = $('aw-scene-picker'); if (!picker) return;
-    const segs = (location.pathname || '').split('/').filter(Boolean);
+    const segs = (location.pathname || '').split('/').filter((s) => s && !s.includes('.'));
     // Arena pages are siblings; the hub's arena links live below /play/.
     // Looking at the final segment (not total URL depth) also supports sites
     // mounted under a project path.
     const prefix = segs[segs.length - 1] === 'play' ? './' : '../';
     picker.innerHTML = '';
-    let idx = 0;
-    for (const [id, cfg] of Object.entries(SCENE_CONFIGS)) {
-        idx++;
-        const card = document.createElement('a');
-        card.className = 'aw-scene-card' + (id === AW.currentScene ? ' selected' : '');
+    const save = Save.load();
+    const cleared = new Set(save.progress.missionsCompleted);
+    const unlocked = new Set(save.progress.arenasUnlocked);
+    const clearedCount = MISSION_ORDER.filter((id) => cleared.has(id)).length;
+
+    const progress = document.getElementById('aw-scene-picker-progress');
+    if (progress) progress.textContent = `${clearedCount} / ${MISSION_ORDER.length} SECTORS CLEARED`;
+
+    MISSION_ORDER.forEach((id, i) => {
+        const cfg = SCENE_CONFIGS[id]; if (!cfg) return;
+        const isUnlocked = unlocked.has(id);
+        const isCleared = cleared.has(id);
+        const card = document.createElement(isUnlocked ? 'a' : 'div');
+        card.className = 'aw-scene-card'
+            + (id === AW.currentScene ? ' selected' : '')
+            + (isCleared ? ' cleared' : '')
+            + (isUnlocked ? '' : ' locked');
         card.dataset.sceneId = id;
-        card.href = prefix + id + '/';
-        card.setAttribute('aria-label', `Deploy to ${cfg.name}`);
+        if (isUnlocked) {
+            // Preserve ?app=1 across navigation for the query-string testing
+            // path; window.MW_NATIVE (the real wrapper flag) is set by the
+            // host shell itself and needs no carrying.
+            card.href = prefix + id + '/' + (IS_APP_MODE && new URLSearchParams(location.search).has('app') ? '?app=1' : '');
+            card.setAttribute('aria-label', `Deploy to ${cfg.name}`);
+        } else {
+            const prevCfg = SCENE_CONFIGS[MISSION_ORDER[i - 1]];
+            card.setAttribute('aria-label', `Locked — complete ${prevCfg ? prevCfg.name : 'the previous sector'} first`);
+        }
         const img = cfg.previewImage
             ? `<span class="aw-scene-card-img" style="background-image:url('${withVersion(cfg.previewImage)}')"></span>`
             : `<span class="aw-scene-card-img" style="background:${cfg.previewGradient || '#111'}"></span>`;
-        const s = String(idx).padStart(2, '0');
+        const s = String(i + 1).padStart(2, '0');
+        const badge = isCleared ? '<span class="aw-scene-card-cleared">✓ CLEARED</span>' : '';
+        const lockOverlay = isUnlocked ? '' : `
+            <span class="aw-scene-card-lock">🔒</span>
+            <span class="aw-scene-card-lockmsg">COMPLETE ${MISSION_ORDER[i - 1] ? SCENE_CONFIGS[MISSION_ORDER[i - 1]].name : ''} TO UNLOCK</span>`;
         card.innerHTML = `
             ${img}
             <span class="aw-scene-card-shade"></span>
             <span class="aw-scene-card-scan"></span>
             <span class="aw-scene-card-sector">SECTOR ${s}</span>
+            ${badge}
             <span class="aw-scene-card-name">${cfg.name}</span>
             <span class="aw-scene-card-desc">${cfg.description}</span>
-            <span class="aw-scene-card-enter">▶ ENTER</span>
+            ${isUnlocked ? '<span class="aw-scene-card-enter">▶ ENTER</span>' : lockOverlay}
         `;
         picker.appendChild(card);
-    }
+    });
 }
 
 // ── Scene build / dispose ──────────────────────────────────────────────
@@ -301,6 +359,7 @@ function disposeScene() {
 function renderLoop() {
     const dt = Math.min(_clock.getDelta(), 0.05);
     const now = performance.now();
+    if (!_paused && !_settingsOpen) pollGamepad(dt);
     if (AW.state === 'playing' && !_paused && !_settingsOpen) {
         updatePlayerMovement(dt);
         WaveManager.tick(dt);
@@ -521,6 +580,55 @@ export function setTouchMoveEnabled(enabled) {
     _touch.host && _touch.host.classList.toggle('disabled', !enabled);
 }
 
+// ── Gamepad ────────────────────────────────────────────────────────────
+// Polled once per frame from renderLoop (not event-driven — the Gamepad API
+// has no input events, only a snapshot via navigator.getGamepads()).
+// Bindings: left stick move, right stick look, RT shoot, LB/RB switch
+// weapon, X reload, Y grenade, Start pause. Deadzone from the save so a
+// worn stick doesn't drift the camera; light aim assist reuses _raycaster.
+const _gp = { index: null, prevButtons: [] };
+function pollGamepad(dt) {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let pad = null;
+    for (const p of pads) { if (p && p.connected) { pad = p; break; } }
+    if (!pad) { _gp.index = null; _touchMove = _touchMove && _touchMove._src === 'gamepad' ? null : _touchMove; return; }
+    _gp.index = pad.index;
+
+    const dz = Save.load().settings.gamepadDeadzone ?? 0.18;
+    const applyDz = (v) => (Math.abs(v) < dz ? 0 : v);
+    const lx = applyDz(pad.axes[0] || 0), ly = applyDz(pad.axes[1] || 0);
+    const rx = applyDz(pad.axes[2] || 0), ry = applyDz(pad.axes[3] || 0);
+
+    // Left stick feeds the same {x,y} shape updatePlayerMovement() already
+    // reads for touch, so movement logic isn't duplicated per input scheme.
+    if (lx !== 0 || ly !== 0) { _touchMove = { x: lx, y: -ly, _src: 'gamepad' }; }
+    else if (_touchMove && _touchMove._src === 'gamepad') { _touchMove = null; }
+
+    // Right stick look — same yaw/pitch math as the mouse handler, scaled by dt
+    // instead of raw pixel deltas since this is a per-frame poll, not an event.
+    if (rx !== 0 || ry !== 0) {
+        _yaw -= rx * 2.2 * dt;
+        _pitch -= ry * 1.8 * dt;
+        _pitch = Math.max(-0.61, Math.min(0.70, _pitch));
+        applyCameraLook();
+    }
+
+    if (AW.state !== 'playing') { _gp.prevButtons = pad.buttons.map((b) => b.pressed); return; }
+
+    const btn = (i) => pad.buttons[i] && pad.buttons[i].pressed;
+    const justPressed = (i) => btn(i) && !_gp.prevButtons[i];
+
+    AW.shooting = btn(7); // RT
+    if (justPressed(4)) switchWeapon((AW.currentWeapon - 1 + WEAPONS.length) % WEAPONS.length); // LB
+    if (justPressed(5)) switchWeapon((AW.currentWeapon + 1) % WEAPONS.length); // RB
+    if (justPressed(2) && !AW.reloading) triggerReload(); // X
+    if (justPressed(3)) throwGrenade(); // Y
+    if (justPressed(9)) togglePause(); // Start
+
+    _gp.prevButtons = pad.buttons.map((b) => b.pressed);
+}
+window.addEventListener('gamepadconnected', (e) => { _gp.index = e.gamepad.index; });
+window.addEventListener('gamepaddisconnected', () => { _gp.index = null; _gp.prevButtons = []; });
 
 // ── Movement ───────────────────────────────────────────────────────────
 // Touch joystick state: {x,y} in [-1,1] (x = right, y = up on screen).
@@ -951,6 +1059,10 @@ function gameWin() {
     Audio.stopAll(); document.exitPointerLock();
     $('aw-win-score').textContent = `${AW.maxWaves} WAVES — ${AW.kills} KILLS — ${AW.score} PTS`;
     $('aw-win').classList.remove('hidden');
+    const nextId = MISSION_ORDER[MISSION_ORDER.indexOf(AW.currentScene) + 1];
+    const isNewUnlock = nextId && !Save.isUnlocked(nextId);
+    Save.unlockNext(AW.currentScene);
+    if (isNewUnlock) HUD.showWaveBanner(`SECTOR UNLOCKED: ${SCENE_CONFIGS[nextId].name}`);
 }
 
 // ── Pause / mute / settings ────────────────────────────────────────────
@@ -980,15 +1092,45 @@ function updateMobileHints() {
     }
 }
 
+// Apply every current slider/select value the way the input listeners would
+// — this is the single apply path so a restored value never just sits in the
+// DOM. Safe to call before Audio.init() (guarded) and again right after.
+function applyAllSettingsControls() {
+    const master = $('aw-vol-master'), sfx = $('aw-vol-sfx'), music = $('aw-vol-music'),
+        sens = $('aw-sensitivity'), fog = $('aw-fog');
+    if (Audio.masterGain && master) Audio.masterGain.gain.value = master.value / 100;
+    if (Audio._sfxGain && sfx) Audio._sfxGain.gain.value = sfx.value / 100;
+    if (Audio._musicGain && music) Audio._musicGain.gain.value = music.value / 100;
+    if (sens) _mouseSensitivity = (sens.value / 100) * 0.005;
+    if (world && world.scene.fog && fog) world.scene.fog.density = (fog.value / 100) * 0.02;
+}
+
 function initSettings() {
     const el = $;
-    el('aw-vol-master').addEventListener('input', (e) => { if (Audio.masterGain) Audio.masterGain.gain.value = e.target.value / 100; });
-    el('aw-vol-sfx').addEventListener('input', (e) => { if (Audio._sfxGain) Audio._sfxGain.gain.value = e.target.value / 100; });
-    el('aw-vol-music').addEventListener('input', (e) => { if (Audio._musicGain) Audio._musicGain.gain.value = e.target.value / 100; });
-    el('aw-sensitivity').addEventListener('input', (e) => { _mouseSensitivity = (e.target.value / 100) * 0.005; });
-    el('aw-fog').addEventListener('input', (e) => { if (world && world.scene.fog) world.scene.fog.density = (e.target.value / 100) * 0.02; });
-    const q = el('aw-quality');
-    if (q) q.addEventListener('change', (e) => { applyQuality(e.target.value); if (AW.state === 'playing') HUD.showWaveBanner(`QUALITY: ${AW.quality.toUpperCase()}`); });
+    const master = el('aw-vol-master'), sfx = el('aw-vol-sfx'), music = el('aw-vol-music'),
+        sens = el('aw-sensitivity'), fog = el('aw-fog'), q = el('aw-quality');
+
+    // Hydrate controls from the save before wiring listeners, so a restored
+    // value is visible in the UI immediately (applyAllSettingsControls()
+    // above pushes it into the live systems once they exist).
+    const s = Save.load().settings;
+    if (master && s.master != null) master.value = s.master;
+    if (sfx && s.sfx != null) sfx.value = s.sfx;
+    if (music && s.music != null) music.value = s.music;
+    if (sens && s.sensitivity != null) sens.value = s.sensitivity;
+    if (fog && s.fog != null) fog.value = s.fog;
+    if (sens) _mouseSensitivity = (sens.value / 100) * 0.005;
+
+    master && master.addEventListener('input', (e) => { if (Audio.masterGain) Audio.masterGain.gain.value = e.target.value / 100; Save.patch({ settings: { master: +e.target.value } }); });
+    sfx && sfx.addEventListener('input', (e) => { if (Audio._sfxGain) Audio._sfxGain.gain.value = e.target.value / 100; Save.patch({ settings: { sfx: +e.target.value } }); });
+    music && music.addEventListener('input', (e) => { if (Audio._musicGain) Audio._musicGain.gain.value = e.target.value / 100; Save.patch({ settings: { music: +e.target.value } }); });
+    sens && sens.addEventListener('input', (e) => { _mouseSensitivity = (e.target.value / 100) * 0.005; Save.patch({ settings: { sensitivity: +e.target.value } }); });
+    fog && fog.addEventListener('input', (e) => { if (world && world.scene.fog) world.scene.fog.density = (e.target.value / 100) * 0.02; Save.patch({ settings: { fog: +e.target.value } }); });
+    if (q) q.addEventListener('change', (e) => {
+        applyQuality(e.target.value);
+        Save.patch({ settings: { quality: e.target.value } });
+        if (AW.state === 'playing') HUD.showWaveBanner(`QUALITY: ${AW.quality.toUpperCase()}`);
+    });
     el('aw-settings-close').addEventListener('click', toggleSettings);
 }
 
