@@ -17,6 +17,12 @@ export { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER };
 
 const _texLoader = new THREE.TextureLoader();
 
+// Small scattered clutter (crates, barrels) registers a slightly tightened
+// footprint. Crates spawn 1-3 deep per position with jitter, so full-size boxes
+// fuse neighbours into one impassable blob; pulling each in leaves the gaps a
+// player can actually squeeze through.
+const CLUTTER_SHRINK = 0.75;
+
 // Scale a BoxGeometry's UVs by each face's world size so a tiling texture keeps
 // an even texel density regardless of how large the box is. Without this a big
 // slab and a small one show wildly different grain from the same map.
@@ -159,7 +165,7 @@ export class World {
         this.camera = camera || null; // needed by camera-locked sky elements (CREON)
         this.scene = new THREE.Scene();
         this.updaters = [];        // [{update(dt, now)}]
-        this.obstacles = [];       // {x,z,hw,hd}
+        this.obstacles = [];       // {x,z,hw,hd,h}
         this.firePits = [];        // {x,z,light}
         this.explosiveBarrels = [];// {mesh,stripe,x,z,exploded}
         this.pools = {};           // particle pools
@@ -211,13 +217,31 @@ export class World {
         return cfg;
     }
 
+    // Single registration point for every solid thing in the arena. A rotated
+    // footprint is stored as its axis-aligned bounding box, since collision is
+    // a cheap AABB test; `shrink` pulls that box in for irregular props whose
+    // AABB overstates their solid core.
+    //
+    // `h` is the obstacle's height. Movement collision ignores it (it is purely
+    // 2D), but line-of-sight and crouch need to know whether a given block is
+    // tall enough to hide behind — a knee-high crate must not break a standing
+    // enemy's sightline the way a ruin wall does.
+    _pushObstacle(x, z, w, d, ry = 0, h = 2, shrink = 1) {
+        const cosR = Math.abs(Math.cos(ry)), sinR = Math.abs(Math.sin(ry));
+        this.obstacles.push({
+            x, z,
+            hw: (w * cosR + d * sinR) / 2 * shrink,
+            hd: (w * sinR + d * cosR) / 2 * shrink,
+            h,
+        });
+    }
+
     // Cover collision, independent of what ends up representing it visually.
     // _buildCoverBlocks() runs after an await; without this the player could
     // walk through every cover position until the GLBs finished decoding.
     _registerCoverObstacles(cfg) {
-        for (const [x, z, w, d, , ry] of (cfg.coverBlocks || [])) {
-            const cosR = Math.abs(Math.cos(ry)), sinR = Math.abs(Math.sin(ry));
-            this.obstacles.push({ x, z, hw: (w * cosR + d * sinR) / 2, hd: (w * sinR + d * cosR) / 2 });
+        for (const [x, z, w, d, h, ry] of (cfg.coverBlocks || [])) {
+            this._pushObstacle(x, z, w, d, ry, h);
         }
     }
 
@@ -334,7 +358,7 @@ export class World {
             wall.castShadow = wall.receiveShadow = true;
             wall.userData = { isObstacle: true };
             this.scene.add(wall);
-            this.obstacles.push({ x: s.cx, z: s.cz, hw: s.w / 2, hd: s.d / 2 });
+            this._pushObstacle(s.cx, s.cz, s.w, s.d, 0, wallH);
         }
         // Gate pillars + warning lights
         const pillarMat = new THREE.MeshStandardMaterial({ color: col3(cfg.pillarColor || [0.3, 0.25, 0.2]), roughness: 0.8, emissive: new THREE.Color(0.03, 0.02, 0.01) });
@@ -344,6 +368,9 @@ export class World {
             pillar.castShadow = pillar.receiveShadow = true;
             pillar.userData = { isObstacle: true };
             this.scene.add(pillar);
+            // Pillars were tagged for the bullet raycast but never registered as
+            // obstacles, so the player walked straight through the gate posts.
+            this._pushObstacle(gx, -hd, 1.5, 1.5, 0, wallH + 1.5);
             const light = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8),
                 new THREE.MeshBasicMaterial({ color: new THREE.Color(0.8, 0.2, 0.0) }));
             light.position.set(gx, wallH + 1.8, -hd);
@@ -479,6 +506,12 @@ export class World {
                 const px = x + (rng() - 0.5) * 3, pz = z + (rng() - 0.5) * 3, yaw = rng() * Math.PI;
                 const pick = crateModels.length ? crateModels[(rng() * crateModels.length) | 0] : null;
                 const model = pick && this._instanceProp(cfg, pick, { w, h, d });
+                // Solid either way. Nothing in this method registered collision,
+                // so every crate, barrel and sandbag wall in every arena was
+                // walk-through — including the plain boxes below, which are the
+                // "procedural blocks you can pass through". Each instance is
+                // registered at its own jittered position, not the authored one.
+                this._pushObstacle(px, pz, w, d, yaw, h, CLUTTER_SHRINK);
                 if (model) {
                     model.position.set(px, 0, pz);
                     model.rotation.y = yaw;
@@ -500,6 +533,10 @@ export class World {
                 const toppled = rng() > 0.7, yaw = rng() * Math.PI;
                 const pick = debrisModels.length ? debrisModels[(rng() * debrisModels.length) | 0] : null;
                 const model = pick && this._instanceProp(cfg, pick, { w: r * 2, h, d: r * 2 });
+                // A toppled barrel lies on its side: its footprint is the barrel's
+                // length, and it is only as tall as its diameter.
+                if (toppled) this._pushObstacle(px, pz, h, r * 2, yaw, r * 2, CLUTTER_SHRINK);
+                else this._pushObstacle(px, pz, r * 2, r * 2, 0, h, CLUTTER_SHRINK);
                 if (model) {
                     model.position.set(px, 0, pz);
                     model.rotation.y = yaw;
@@ -518,6 +555,9 @@ export class World {
             const w = 3 + rng() * 2, h = 0.8 + rng() * 0.4;
             const pick = sandbagModels.length ? sandbagModels[(rng() * sandbagModels.length) | 0] : null;
             const model = pick && this._instanceProp(cfg, pick, { w, h, d: 0.6, fit: 'footprint' });
+            // Full footprint, no shrink — a sandbag wall is deliberate cover and
+            // should block exactly where it looks like it blocks.
+            this._pushObstacle(x, z, w, 0.6, ry, h);
             if (model) {
                 model.position.set(x, 0, z);
                 model.rotation.y = ry;
@@ -831,7 +871,10 @@ export class World {
         if (!names.length) return out;
 
         const hw = cfg.perimeter.halfW, hd = cfg.perimeter.halfD;
-        const inner = 46;                       // where the authored layout ends
+        // Where the authored layout actually ends, measured rather than assumed.
+        // A hardcoded 46 leaves a gap in any scene whose hand-placed props stop
+        // short of it, and overlaps the layout in any scene that reaches past.
+        const inner = this._authoredExtent(cfg);
         const outerW = hw - 8, outerD = hd - 8; // stay off the wall
         if (outerW <= inner) return out;
 
@@ -842,28 +885,71 @@ export class World {
         const small = names.filter((n) => (sceneAssets[n].scale || 0) < 10);
 
         const taken = [];
-        const count = Math.round(((outerW * outerD) - (inner * inner)) / 950);
-        for (let i = 0; i < count; i++) {
-            const edge = rng();
-            // Bias toward the ring: pick a point outside the inner square.
-            let x = (rng() * 2 - 1) * outerW;
-            let z = (rng() * 2 - 1) * outerD;
-            if (Math.abs(x) < inner && Math.abs(z) < inner) {
-                if (edge < 0.5) x = (x < 0 ? -1 : 1) * (inner + rng() * (outerW - inner));
-                else z = (z < 0 ? -1 : 1) * (inner + rng() * (outerD - inner));
-            }
-            if (Math.hypot(x - start.x, z - start.z) < 30) continue;
-            let clash = false;
-            for (const t of taken) { if (Math.hypot(x - t[0], z - t[1]) < 14) { clash = true; break; } }
-            if (clash) continue;
-            taken.push([x, z]);
+        // Ring area is the full annulus, not one quadrant. `outerW`/`outerD`/
+        // `inner` are all half-extents, so the previous
+        // `outerW*outerD - inner*inner` was a quarter of the real area — warzone
+        // asked for 5 props to fill 17,136 sq units, which is what left the
+        // enlarged arena looking bare.
+        const ringArea = 4 * ((outerW * outerD) - (inner * inner));
+        // Two passes: sparse large silhouettes that read as skyline, then denser
+        // small cover so the outer band is somewhere to fight, not just scenery.
+        const passes = [
+            { count: Math.round(ringArea / 950), pool: big.length ? big : names, spacing: 14 },
+            { count: Math.round(ringArea / 420), pool: small.length ? small : names, spacing: 7 },
+        ];
 
-            const pool = (rng() < 0.55 && big.length) ? big : (small.length ? small : names);
-            const name = pool[(rng() * pool.length) | 0];
-            if (!out.has(name)) out.set(name, []);
-            out.get(name).push({ x, z, ry: rng() * Math.PI * 2 });
+        for (const pass of passes) {
+            // Retry on rejection instead of skipping. Rejections used to consume
+            // an iteration outright, so the realized count fell well below target.
+            let placed = 0;
+            for (let attempt = 0; placed < pass.count && attempt < pass.count * 8; attempt++) {
+                // Sample the ring directly. Sampling the whole square and pushing
+                // strays outward scattered props thinly across the entire arena
+                // instead of concentrating them in the empty band.
+                let x, z;
+                if (rng() < 0.5) {
+                    x = (rng() < 0.5 ? -1 : 1) * (inner + rng() * (outerW - inner));
+                    z = (rng() * 2 - 1) * outerD;
+                } else {
+                    x = (rng() * 2 - 1) * outerW;
+                    z = (rng() < 0.5 ? -1 : 1) * (inner + rng() * (outerD - inner));
+                }
+                if (Math.hypot(x - start.x, z - start.z) < 30) continue;
+                let clash = false;
+                for (const t of taken) { if (Math.hypot(x - t[0], z - t[1]) < pass.spacing) { clash = true; break; } }
+                if (clash) continue;
+                taken.push([x, z]);
+                placed++;
+
+                const name = pass.pool[(rng() * pass.pool.length) | 0];
+                if (!out.has(name)) out.set(name, []);
+                out.get(name).push({ x, z, ry: rng() * Math.PI * 2 });
+            }
         }
         return out;
+    }
+
+    // Where the scene's hand-authored content effectively ends, so the outer
+    // fill knows where to start.
+    //
+    // This is a high percentile, not the maximum. Most scenes place a handful of
+    // large silhouettes far out on one side (warzone has 7 of 73 past radius 50,
+    // all in the north) while the other ~90% of the layout stops well short.
+    // Taking the max lets those outliers speak for the whole arena and collapses
+    // the ring to nothing; the percentile tracks where the bulk actually ends.
+    _authoredExtent(cfg) {
+        const radii = [];
+        const add = (x, z) => radii.push(Math.max(Math.abs(x), Math.abs(z)));
+        for (const ac of Object.values(cfg.sceneAssets || {})) {
+            for (const p of (ac.placements || [])) add(p.x, p.z);
+        }
+        for (const [x, z] of (cfg.coverBlocks || [])) add(x, z);
+        for (const [x, z] of (cfg.cratePositions || [])) add(x, z);
+        for (const [x, z] of (cfg.barrelPositions || [])) add(x, z);
+        if (!radii.length) return 46;
+        radii.sort((a, b) => a - b);
+        const p85 = radii[Math.min(radii.length - 1, Math.floor(radii.length * 0.85))];
+        return p85 + 6;
     }
 
     // ── GLB scene assets (async, cloned per placement) ──────────────
@@ -936,17 +1022,15 @@ export class World {
                 // wreck and barricade. Register the rotated AABB footprint, matching
                 // how _buildCoverBlocks() derives its own.
                 if (ac.noCollide) continue;
-                const ry = p.ry || 0;
-                const cosR = Math.abs(Math.cos(ry)), sinR = Math.abs(Math.sin(ry));
-                const w = baseSize.x * ac.scale, d = baseSize.z * ac.scale;
                 // Shrink slightly: the AABB of an irregular ruin overstates its
                 // solid core, and an oversized box blocks doorways and gaps.
-                const shrink = ac.collideScale ?? 0.8;
-                this.obstacles.push({
-                    x: p.x, z: p.z,
-                    hw: (w * cosR + d * sinR) / 2 * shrink,
-                    hd: (w * sinR + d * cosR) / 2 * shrink,
-                });
+                this._pushObstacle(
+                    p.x, p.z,
+                    baseSize.x * ac.scale, baseSize.z * ac.scale,
+                    p.ry || 0,
+                    baseSize.y * ac.scale,
+                    ac.collideScale ?? 0.8,
+                );
             }
         }
         // Vehicle fires
