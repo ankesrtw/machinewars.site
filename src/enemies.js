@@ -12,6 +12,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadGLB } from './gltf.js';
 import { SCENE_MODEL_BASE } from './scenes-data.js';
 import { withVersion } from './version.js';
+import { col3 } from './math.js';
 
 const _modelCache = {}; // type -> gltf.scene template
 const ENEMY_UP = new THREE.Vector3(0, 1, 0);
@@ -30,7 +31,6 @@ const _templateGeos = new Set();
 let ctx = null;
 export function setContext(c) { ctx = c; }
 
-function col(a) { return new THREE.Color(a[0], a[1], a[2]); }
 
 // ── Procedural robot geometry builders ─────────────────────────────
 // Low-poly primitives per type, merged into ONE BufferGeometry per type
@@ -347,9 +347,9 @@ export class Enemy {
             model.traverse((o) => {
                 if (!o.isMesh) return;
                 o.material = o.material.clone();
-                if (o.material.map) o.material.color.lerp(col(cfg.tintColor), 0.35);
-                else o.material.color.copy(col(cfg.tintColor));
-                o.material.emissive = col(cfg.emissiveAccent);
+                if (o.material.map) o.material.color.lerp(col3(cfg.tintColor), 0.35);
+                else o.material.color.copy(col3(cfg.tintColor));
+                o.material.emissive = col3(cfg.emissiveAccent);
                 o.material.emissiveIntensity = 0.6;
                 o.castShadow = true;
                 this._meshMats.push(o.material);
@@ -370,7 +370,7 @@ export class Enemy {
         this.hitbox = hitbox;
 
         // Eye light
-        const eye = new THREE.PointLight(col(cfg.eyeColor), cfg.eyeIntensity * 2, cfg.eyeRange);
+        const eye = new THREE.PointLight(col3(cfg.eyeColor), cfg.eyeIntensity * 2, cfg.eyeRange);
         eye.position.set(0, cfg.eyeHeight, 0.3);
         root.add(eye);
         this.eye = eye;
@@ -418,7 +418,7 @@ export class Enemy {
         }
         if (_fbRobotGeo[this.typeName]) {
             this._tintMat = new THREE.MeshStandardMaterial({
-                color: col(cfg.tintColor), emissive: col(cfg.emissiveAccent),
+                color: col3(cfg.tintColor), emissive: col3(cfg.emissiveAccent),
                 roughness: 0.6, metalness: 0.4,
             });
             this._tintMat.emissiveIntensity = 0.6;
@@ -428,7 +428,7 @@ export class Enemy {
             root.add(body);
             this._flashMeshes.push(body);
             if (_fbRobotGlow[this.typeName]) {
-                const glowMat = new THREE.MeshBasicMaterial({ color: col(cfg.eyeColor) });
+                const glowMat = new THREE.MeshBasicMaterial({ color: col3(cfg.eyeColor) });
                 const glow = new THREE.Mesh(_fbRobotGlow[this.typeName], glowMat);
                 root.add(glow);
                 this._flashMeshes.push(glow);

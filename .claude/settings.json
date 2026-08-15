@@ -108,7 +108,9 @@
       "Bash(wrangler pages deploy:*)",
       "PowerShell(Get-Content:*)",
       "PowerShell(Test-Path:*)",
-      "PowerShell(Measure-Object:*)"
+      "PowerShell(Measure-Object:*)",
+      "PowerShell(Set-Location:*)",
+      "PowerShell(cd:*)"
     ],
     "deny": [
       "Read(./.env)"

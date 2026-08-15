@@ -23,6 +23,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SCENE_CONFIGS } from '../src/scenes-data.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -36,11 +37,13 @@ const BUILD_ID = m[1];
 
 // Every page that references assets/. Arena pages are hardcoded copies
 // (see AGENTS.md), so each one has to be stamped individually.
+// Derived from SCENE_CONFIGS, not hand-listed. This list previously omitted
+// 'space', so that page was never stamped and kept serving its icon and logo
+// from a stale cache key long after every other page had moved on.
 const files = [
     'index.html',
     'play/index.html',
-    ...['warzone', 'urban', 'desert', 'jungle', 'arctic', 'mars', 'alien']
-        .map((s) => `play/${s}/index.html`),
+    ...Object.keys(SCENE_CONFIGS).map((s) => `play/${s}/index.html`),
 ];
 
 // Matches an assets/ URL in href=""/src=""/content=""/url('') form, with any

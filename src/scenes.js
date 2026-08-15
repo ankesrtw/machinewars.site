@@ -13,6 +13,7 @@ import {
     concreteTexture,
 } from './fx.js';
 import { projectileGeometries } from './projectiles.js';
+import { col3 } from './math.js';
 
 export { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER };
 
@@ -157,7 +158,6 @@ function _buildFallbackTemplate(name, tint) {
     return root;
 }
 
-function col3(a) { return new THREE.Color(a[0], a[1], a[2]); }
 
 /* The World holds everything built for the active scene + per-frame updaters. */
 export class World {

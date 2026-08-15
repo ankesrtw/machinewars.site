@@ -16,6 +16,7 @@ import { Audio } from './audio.js';
 import { withVersion, BUILD_ID } from './version.js';
 import { Save } from './save.js';
 import { spawnProjectile, projectileGeometries } from './projectiles.js';
+import { clampPitch } from './math.js';
 
 // Used only when a scene config hasn't loaded yet; matches no real arena, so it
 // exists purely to keep the clamps finite. Was duplicated as a literal here and
@@ -417,7 +418,7 @@ function setupInput() {
         if (AW.state !== 'playing' || document.pointerLockElement !== canvas) return;
         _yaw -= e.movementX * _mouseSensitivity;
         _pitch -= e.movementY * _mouseSensitivity;
-        _pitch = Math.max(-0.61, Math.min(0.70, _pitch));
+        _pitch = clampPitch(_pitch);
         applyCameraLook();
     });
 
@@ -580,7 +581,7 @@ function onTouch(e) {
                 const k = (_mouseSensitivity / 0.0018) * 0.0062; // scale with the sensitivity slider
                 _yaw -= dx * k;
                 _pitch -= dy * k;
-                _pitch = Math.max(-0.61, Math.min(0.70, _pitch));
+                _pitch = clampPitch(_pitch);
                 applyCameraLook();
             }
         } else { // end / cancel
@@ -627,7 +628,7 @@ function pollGamepad(dt) {
     if (rx !== 0 || ry !== 0) {
         _yaw -= rx * 2.2 * dt;
         _pitch -= ry * 1.8 * dt;
-        _pitch = Math.max(-0.61, Math.min(0.70, _pitch));
+        _pitch = clampPitch(_pitch);
         applyCameraLook();
     }
 

@@ -28,7 +28,15 @@ const dryRun = process.argv.includes('--dry-run');
 
 function step(msg) { console.log(`\n\x1b[36m── ${msg}\x1b[0m`); }
 
-// ── 1. Build id + HTML stamping ─────────────────────────────────────
+// ── 1. Arena pages ──────────────────────────────────────────────────
+// Before stamping: gen-version.mjs invokes stamp-assets.mjs, so the pages have
+// to exist in final form first or they'd ship with the template's build id.
+step('Generating arena pages');
+execFileSync(process.execPath, [path.join(root, 'tools/gen-pages.mjs')], {
+    stdio: 'inherit', cwd: root,
+});
+
+// ── 2. Build id + HTML stamping ─────────────────────────────────────
 step('Generating asset build id');
 execFileSync(process.execPath, [path.join(root, 'tools/gen-version.mjs')], {
     stdio: 'inherit', cwd: root,
@@ -39,7 +47,7 @@ if (dryRun) {
     process.exit(0);
 }
 
-// ── 2. Credentials ──────────────────────────────────────────────────
+// ── 3. Credentials ──────────────────────────────────────────────────
 step('Loading credentials from .env');
 const envPath = path.join(root, '.env');
 if (!fs.existsSync(envPath)) {
@@ -60,7 +68,7 @@ for (const k of ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']) {
 }
 console.log('account id + api token present');
 
-// ── 3. Deploy ───────────────────────────────────────────────────────
+// ── 4. Deploy ───────────────────────────────────────────────────────
 step('Deploying to Cloudflare Pages');
 const args = ['pages', 'deploy', '.', '--project-name', 'machinewars-site', '--commit-dirty=true'];
 
