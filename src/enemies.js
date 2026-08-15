@@ -4,7 +4,8 @@
    Decoupled from the game core via an injected `ctx` (see setContext):
      ctx.scene, ctx.camera, ctx.pools, ctx.audio, ctx.AW,
      ctx.onPlayerDamage, ctx.addScore, ctx.checkKillStreak,
-     ctx.spawnExplosion, ctx.checkCollision, ctx.spawnEnemyTracer
+     ctx.spawnExplosion, ctx.checkCollision, ctx.spawnEnemyProjectile,
+     ctx.hasLineOfSight, ctx.onWaveComplete
    ═══════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -150,23 +151,37 @@ function _buildRobotGeometries(type, cfg) {
     }
 }
 
+// Line-of-sight is re-marched at most this often per enemy. It walks the
+// obstacle list, and cover doesn't move on a per-frame timescale.
+const LOS_CACHE_MS = 180;
+
 // ── Enemy type configs (colors as [r,g,b] arrays → THREE.Color) ─────
+// Ranged fields: firesBack, fireInterval (ms between shots), fireRange,
+// fireDamage, fireSpread (radians, widened by distance), windUp (telegraph ms),
+// meleeInterval (contact-damage cooldown).
 export const ENEMY_TYPES = {
     scout: { name: 'SCOUT', hp: 1, speed: 3.0, damage: 15, modelScale: 5.0, eyeHeight: 1.6,
         eyeColor: [0, 0.8, 1.0], eyeIntensity: 1.4, eyeRange: 5, tintColor: [0.15, 0.35, 0.4], emissiveAccent: [0, 0.3, 0.5],
         hitboxH: 5.0, hitboxW: 2.5, zigzag: true },
+    // Grunts are the backbone of every wave and used to be pure suicide-rushers,
+    // so mid-wave fights had no ranged threat at all. Slow, inaccurate fire at
+    // medium range gives them presence without making them snipers.
     grunt: { name: 'GRUNT', hp: 3, speed: 4.5, damage: 20, modelScale: 4.0, eyeHeight: 2.0,
         eyeColor: [1.0, 0.5, 0], eyeIntensity: 1.8, eyeRange: 6, tintColor: [0.35, 0.22, 0.12], emissiveAccent: [0.4, 0.15, 0],
-        hitboxH: 5.0, hitboxW: 2.5, zigzag: false },
+        hitboxH: 5.0, hitboxW: 2.5, zigzag: false,
+        firesBack: true, fireInterval: 5200, fireRange: 30, fireDamage: 6, fireSpread: 0.075, windUp: 520 },
     heavy: { name: 'HEAVY', hp: 6, speed: 1.56, damage: 30, modelScale: 6.0, eyeHeight: 2.4,
         eyeColor: [1.0, 0, 0], eyeIntensity: 2.2, eyeRange: 7, tintColor: [0.4, 0.08, 0.05], emissiveAccent: [0.5, 0, 0],
-        hitboxH: 6.0, hitboxW: 3.0, zigzag: false, firesBack: true, fireInterval: 4000 },
+        hitboxH: 6.0, hitboxW: 3.0, zigzag: false,
+        firesBack: true, fireInterval: 4000, fireRange: 42, fireDamage: 10, fireSpread: 0.045, windUp: 460 },
     drone: { name: 'DRONE', hp: 2, speed: 5.4, damage: 10, modelScale: 2.5, eyeHeight: 3.5,
         eyeColor: [0.6, 0, 1.0], eyeIntensity: 1.6, eyeRange: 5, tintColor: [0.2, 0.1, 0.3], emissiveAccent: [0.3, 0, 0.5],
-        hitboxH: 2.5, hitboxW: 2.0, zigzag: true, flies: true, flyHeight: 4.0, firesBack: true, fireInterval: 3000 },
+        hitboxH: 2.5, hitboxW: 2.0, zigzag: true, flies: true, flyHeight: 4.0,
+        firesBack: true, fireInterval: 3000, fireRange: 34, fireDamage: 5, fireSpread: 0.06, windUp: 340 },
     boss: { name: 'BOSS', hp: 25, speed: 1.2, damage: 50, modelScale: 10.0, eyeHeight: 3.5,
         eyeColor: [1.0, 0, 0], eyeIntensity: 3.0, eyeRange: 10, tintColor: [0.5, 0.05, 0], emissiveAccent: [0.8, 0.1, 0],
-        hitboxH: 9.0, hitboxW: 5.0, zigzag: false, firesBack: true, fireInterval: 2000 },
+        hitboxH: 9.0, hitboxW: 5.0, zigzag: false,
+        firesBack: true, fireInterval: 2000, fireRange: 50, fireDamage: 14, fireSpread: 0.035, windUp: 600 },
 };
 // NOTE: v1 speeds were per-frame (~60fps). V2 is dt-based, so speeds are ×60.
 // NOTE: modelScale is retained for the procedural fallback silhouettes only.
@@ -295,8 +310,13 @@ export class Enemy {
         this._noProgress = 0;      // seconds without getting closer
         this._eyeOffset = Math.random() * Math.PI * 2;
         this._collapse = null;
+        this._nextMeleeTime = 0;   // contact-damage cooldown (was suicide-on-touch)
+        this._windUpUntil = 0;     // telegraph: firing after this instant
+        this._losOk = false;       // cached line-of-sight to the player
+        this._losCheckedAt = 0;
         this._tmpDir = new THREE.Vector3();
         this._tmpRight = new THREE.Vector3();
+        this._tmpFrom = new THREE.Vector3();
         this._build();
     }
 
@@ -433,9 +453,18 @@ export class Enemy {
         const dz = cam.position.z - this.root.position.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
 
+        // Melee on a cooldown rather than detonating on contact. Destroying
+        // itself the instant it touched the player meant every close-range
+        // exchange ended in one hit and no enemy ever sustained pressure —
+        // a large part of why the fight felt shallow.
         if (dist < 2.2) {
-            ctx.onPlayerDamage(this.cfg.damage, this.root.position.x, this.root.position.z);
-            this._die();
+            if (now >= this._nextMeleeTime) {
+                ctx.onPlayerDamage(this.cfg.damage, this.root.position.x, this.root.position.z);
+                this._nextMeleeTime = now + (this.cfg.meleeInterval || 1200);
+                this._flashHit();
+            }
+            // Keep facing the player while grappling instead of drifting past.
+            this.root.rotation.y = Math.atan2(this._tmpDir.x, this._tmpDir.z);
             return;
         }
 
@@ -449,7 +478,10 @@ export class Enemy {
             this.root.position.z += this._tmpRight.z * strafe;
         }
 
-        const step = this.cfg.speed * dt;
+        // Plant while telegraphing a shot. A robot that keeps charging through
+        // its own wind-up reads as if it never aimed, and the pause is what sells
+        // the tell.
+        const step = this.cfg.speed * dt * (this._windUpUntil ? 0.15 : 1);
         const px = this.root.position.x, pz = this.root.position.z;
         const R = this.cfg.hitboxW * 0.4;
 
@@ -542,6 +574,13 @@ export class Enemy {
         if (this.eye) {
             const t = now * 0.003 + this._eyeOffset;
             this.eye.intensity = this._eyeBase + Math.sin(t * 5) * 0.6 + Math.sin(t * 11) * 0.24;
+            // Telegraph: the eye ramps hot through the wind-up, so an incoming
+            // shot is visible before it exists.
+            if (this._windUpUntil) {
+                const total = this.cfg.windUp || 420;
+                const charge = 1 - Math.max(0, this._windUpUntil - now) / total;
+                this.eye.intensity += this._eyeBase * 2.6 * charge * charge;
+            }
         }
 
         const prevWalk = this._walkT;
@@ -553,20 +592,59 @@ export class Enemy {
             if (Math.sin(prevWalk) > 0 && Math.sin(this._walkT) <= 0) ctx.audio.playFootstep(dist, this.typeName);
         }
 
-        if (this.cfg.firesBack && dist < 40 && now > this.nextFireTime) {
-            this._fireAtPlayer(dist);
+        this._updateWeapon(dist, now);
+    }
+
+    // Ranged attack. Three things had to change here: enemies used to fire
+    // through solid walls (there was no line-of-sight test anywhere), the shot
+    // had no wind-up so it was unreadable, and damage landed instantly on a
+    // dice roll while the visible tracer was decorative.
+    _updateWeapon(dist, now) {
+        if (!this.cfg.firesBack || !this.root) return;
+        const range = this.cfg.fireRange || 40;
+        if (dist > range) { this._windUpUntil = 0; return; }
+
+        // LOS is cached briefly — it marches the obstacle list, and re-walking
+        // it per enemy per frame is wasted work for something that changes on a
+        // human timescale.
+        if (now - this._losCheckedAt > LOS_CACHE_MS) {
+            this._losCheckedAt = now;
+            this._tmpFrom.copy(this.root.position);
+            this._tmpFrom.y += this.cfg.eyeHeight || 2;
+            this._losOk = ctx.hasLineOfSight(this._tmpFrom, ctx.camera.position);
+        }
+
+        if (this._windUpUntil) {
+            // Committed to a shot: fire when the telegraph finishes, but only if
+            // the player is *still* exposed. Breaking line of sight during the
+            // wind-up has to actually save you or cover means nothing.
+            if (now < this._windUpUntil) return;
+            this._windUpUntil = 0;
+            if (this._losOk) this._fireAtPlayer(dist);
             this.nextFireTime = now + this.cfg.fireInterval + Math.random() * 1500;
+            return;
+        }
+
+        if (this._losOk && now > this.nextFireTime) {
+            // Telegraph: the eye spikes for a beat before the bolt leaves, so the
+            // shot is something the player can react to rather than absorb.
+            this._windUpUntil = now + (this.cfg.windUp || 420);
         }
     }
 
     _fireAtPlayer(dist) {
         ctx.audio.playEnemyFire();
-        if (this.root) {
-            const from = this.root.position.clone(); from.y += 2;
-            ctx.spawnEnemyTracer(from, ctx.camera.position.clone());
-        }
-        const hitChance = Math.max(0.1, 1 - dist / 45);
-        if (Math.random() < hitChance) ctx.onPlayerDamage(8, this.root.position.x, this.root.position.z);
+        const from = this.root.position.clone();
+        from.y += this.cfg.eyeHeight || 2;
+        // Aim at the player's current eye position, with spread that opens up
+        // with range — accuracy now lives in the trajectory rather than in a
+        // hit-chance roll, so the shot can be side-stepped or ducked under.
+        const to = ctx.camera.position.clone();
+        const spread = (this.cfg.fireSpread || 0.055) * Math.min(2.5, 0.45 + dist / 22);
+        to.x += (Math.random() - 0.5) * spread * dist;
+        to.y += (Math.random() - 0.5) * spread * dist * 0.6;
+        to.z += (Math.random() - 0.5) * spread * dist;
+        ctx.spawnEnemyProjectile(from, to, this.cfg.fireDamage || 8);
     }
 
     takeDamage(amount) {

@@ -370,6 +370,11 @@ body.mw-app-mode #aw-loading { top: 0; }
 #hud-hp-track { width: 200px; height: 6px; background: rgba(0,255,100,0.08); border: 1px solid rgba(0,255,100,0.15); }
 #hud-hp-fill { height: 100%; width: 200px; background: rgba(0,255,100,0.8); }
 #hud-hp-val { position: absolute; left: 210px; bottom: -4px; font-size: 13px; color: rgba(0,255,100,0.9); }
+/* Stamina sits directly under hull integrity. Ice-blue rather than green so
+   the two bars can't be misread at a glance mid-fight; it still encodes state
+   (sprint available / spent), not brand, so it stays out of the neutral palette. */
+#hud-stam-track { width: 200px; height: 3px; margin-top: 3px; background: rgba(0,220,255,0.08); border: 1px solid rgba(0,220,255,0.14); transition: opacity 0.25s ease; }
+#hud-stam-fill { height: 100%; width: 200px; background: rgba(0,220,255,0.7); }
 
 #hud-ammo-wrap { position: absolute; bottom: 36px; right: 28px; text-align: right; }
 #hud-reload { font-size: 12px; color: rgba(255,200,0,0.9); opacity: 0; transition: opacity 0.15s; margin-bottom: 6px; }
@@ -434,6 +439,10 @@ html, body {
 .tc-btn:active { background: rgba(0,255,120,0.25); }
 .tc-btn-grenade { color: #ffb040; border-color: rgba(255,176,64,0.5); }
 .tc-btn-reload { color: #60c0ff; border-color: rgba(96,192,255,0.5); }
+/* Movement buttons: smaller type than the single-letter ones so JUMP/DUCK fit. */
+.tc-btn-jump, .tc-btn-crouch { font-size: 11px; letter-spacing: 0.04em; }
+/* Crouch toggles rather than being held, so it needs a visible latched state. */
+.tc-btn-crouch.active { background: rgba(0,255,120,0.28); box-shadow: 0 0 14px rgba(0,255,120,0.35); }
 
 .tc-fire {
     position: absolute; right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px));

@@ -28,7 +28,21 @@ export const HUD = {
         this._dmgArrow = $('hud-damage-dir');
         const radar = $('hud-radar');
         this._radarCtx = radar ? radar.getContext('2d') : null;
+        this._initStamina();
         this.update();
+    },
+
+    // Built here rather than in markup: the play page exists as 8 duplicated
+    // copies, so anything added to the HTML has to be hand-synced 8 ways.
+    _initStamina() {
+        const wrap = $('hud-hp-wrap');
+        if (!wrap || $('hud-stam-track')) return;
+        const track = document.createElement('div');
+        track.id = 'hud-stam-track';
+        track.innerHTML = '<div id="hud-stam-fill"></div>';
+        wrap.appendChild(track);
+        this._stamBar = $('hud-stam-fill');
+        this._stamTrack = track;
     },
 
     update() {
@@ -38,6 +52,14 @@ export const HUD = {
         this._hpBar.style.width = `${Math.round(pct * 200)}px`;
         this._hpBar.style.background = pct > 0.5 ? 'rgba(0,255,100,0.85)' : pct > 0.25 ? 'rgba(255,200,0,0.9)' : 'rgba(255,40,0,0.92)';
         this._hpText.textContent = `${AW.playerHP}`;
+        if (this._stamBar) {
+            const sp = Math.max(0, (AW.stamina ?? 100) / (AW.maxStamina || 100));
+            this._stamBar.style.width = `${Math.round(sp * 200)}px`;
+            // Dim while full so a resource the player isn't using stays quiet,
+            // and flag amber when it's too low to sprint on.
+            this._stamTrack.style.opacity = sp >= 0.999 ? '0.35' : '1';
+            this._stamBar.style.background = sp > 0.3 ? 'rgba(0,220,255,0.7)' : 'rgba(255,180,0,0.85)';
+        }
         this._ammo.textContent = `${AW.ammo} / ${AW.maxAmmo}`;
         this._wave.textContent = `WAVE ${AW.wave} / ${AW.maxWaves}`;
         this._kills.textContent = `${AW.kills} KILLS`;

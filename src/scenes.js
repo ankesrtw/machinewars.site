@@ -12,6 +12,7 @@ import {
     fireTexture, smokeTexture, ParticlePool, ContinuousEmitter, creonFaceTexture,
     concreteTexture,
 } from './fx.js';
+import { projectileGeometries } from './projectiles.js';
 
 export { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER };
 
@@ -1056,8 +1057,12 @@ export class World {
         // by reference, so freeing everything reachable from the scene graph
         // would blank out every prop after a scene switch. Dispose only what
         // this World allocated.
+        // Projectile geometry is pooled and shared across every bolt, like the
+        // template caches — a bolt still in flight here would otherwise take the
+        // shared geometry down with it.
+        const shared = new Set(projectileGeometries());
         this.scene.traverse((o) => {
-            if (o.geometry && !_templateGeos.has(o.geometry)) o.geometry.dispose();
+            if (o.geometry && !_templateGeos.has(o.geometry) && !shared.has(o.geometry)) o.geometry.dispose();
         });
         for (const m of this._ownMaterials) m.dispose();
         this._ownMaterials = [];

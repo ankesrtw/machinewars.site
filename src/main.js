@@ -15,6 +15,12 @@ import { HUD } from './hud.js';
 import { Audio } from './audio.js';
 import { withVersion, BUILD_ID } from './version.js';
 import { Save } from './save.js';
+import { spawnProjectile, projectileGeometries } from './projectiles.js';
+
+// Used only when a scene config hasn't loaded yet; matches no real arena, so it
+// exists purely to keep the clamps finite. Was duplicated as a literal here and
+// in spawnPickups().
+const DEFAULT_PERIMETER = { halfW: 55, halfD: 55 };
 
 // App-mode: set by a native wrapper (Capacitor/Electron) via ?app=1 or by
 // presetting window.MW_NATIVE before this module loads. Hides the web-only
@@ -338,7 +344,7 @@ function buildScene(sceneId) {
     setContext({
         scene: world.scene, camera, pools: world.pools, audio: Audio, AW,
         onPlayerDamage, addScore, checkKillStreak, spawnExplosion,
-        checkCollision, spawnEnemyTracer, onWaveComplete,
+        checkCollision, spawnEnemyProjectile, hasLineOfSight, onWaveComplete,
     });
 
     HUD.init(AW, WEAPONS);
@@ -435,7 +441,9 @@ function setupInput() {
         if (e.code === 'Digit3') switchWeapon(2);
         if (e.code === 'KeyR' && !AW.reloading) triggerReload();
         if (e.code === 'KeyG') throwGrenade();
-        if (e.code === 'Space') { e.preventDefault(); togglePause(); }
+        // Space is jump now; pause moved to Escape / P.
+        if (e.code === 'Space') { e.preventDefault(); tryJump(); }
+        if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); togglePause(); }
     });
     document.addEventListener('keyup', (e) => { AW.keys[e.code] = false; });
 
@@ -477,6 +485,8 @@ function setupTouchControls() {
         <div class="tc-buttons">
             <button class="tc-btn tc-btn-grenade" id="tc-grenade" type="button">G</button>
             <button class="tc-btn tc-btn-reload" id="tc-reload" type="button">R</button>
+            <button class="tc-btn tc-btn-jump" id="tc-jump" type="button">JUMP</button>
+            <button class="tc-btn tc-btn-crouch" id="tc-crouch" type="button">DUCK</button>
         </div>
         <button class="tc-fire" id="tc-fire" type="button">FIRE</button>
         <div class="tc-weapons" id="tc-weapons">
@@ -501,6 +511,14 @@ function setupTouchControls() {
 
     $('tc-reload').addEventListener('touchstart', press(() => { if (!AW.reloading) triggerReload(); }), { passive: false });
     $('tc-grenade').addEventListener('touchstart', press(() => throwGrenade()), { passive: false });
+    $('tc-jump').addEventListener('touchstart', press(() => tryJump()), { passive: false });
+    // Crouch toggles on touch. It is a held key on desktop, but holding a button
+    // here would tie up the thumb that also has to aim.
+    $('tc-crouch').addEventListener('touchstart', press(() => {
+        const on = !AW.keys['KeyC'];
+        AW.keys['KeyC'] = on;
+        $('tc-crouch').classList.toggle('active', on);
+    }), { passive: false });
     for (const b of host.querySelectorAll('.tc-wbtn')) {
         b.addEventListener('touchstart', press(() => switchWeapon(+b.dataset.w)), { passive: false });
     }
@@ -637,8 +655,63 @@ export function setTouchMove(x, y) {
     _touchMove = (x === 0 && y === 0) ? null : { x, y };
 }
 
+// ── Stance / vertical axis ─────────────────────────────────────────────
+// The camera used to have its Y hard-set every frame, so there was no vertical
+// axis at all. Crouch, sprint and jump all hang off the state below; _baseCamY
+// remains the standing eye height and everything else is an offset from it.
+const STANCE = {
+    crouchRatio: 0.55,   // eye height multiplier when fully crouched
+    crouchSpeed: 0.5,    // movement multiplier
+    sprintSpeed: 1.6,
+    crouchLerp: 9,       // how fast the camera settles between stances
+    jumpVel: 6.2,
+    gravity: 18,
+    staminaDrain: 34,    // per second while sprinting
+    staminaRegen: 22,
+    staminaFloor: 15,    // must recover past this before sprinting again
+};
+let _velY = 0, _grounded = true, _crouchT = 0, _sprintLock = false;
+AW.stamina = 100; AW.maxStamina = 100; AW.crouching = false; AW.sprinting = false;
+
+// Horizontal radius a projectile must come within to hit the player. Crouching
+// genuinely shrinks the target, so ducking is mechanically worth doing rather
+// than only cosmetic.
+function playerRadius() { return AW.crouching ? 0.42 : 0.62; }
+function playerHalfHeight() { return AW.crouching ? 0.75 : 1.15; }
+
+function updatePlayerStance(dt) {
+    const keys = AW.keys;
+    const wantCrouch = !!(keys['ControlLeft'] || keys['ControlRight'] || keys['KeyC']);
+    // A jump has to clear the crouch first, otherwise you can hop while ducked.
+    AW.crouching = wantCrouch && _grounded;
+    _crouchT += ((AW.crouching ? 1 : 0) - _crouchT) * Math.min(1, STANCE.crouchLerp * dt);
+
+    // Sprint: forward-only, not while crouched or firing, and gated on stamina
+    // recovering past a floor so it can't be feathered at zero.
+    const wantSprint = !!(keys['ShiftLeft'] || keys['ShiftRight'])
+        && !AW.crouching && !AW.shooting
+        && (keys['KeyW'] || keys['ArrowUp']);
+    if (_sprintLock && AW.stamina > STANCE.staminaFloor) _sprintLock = false;
+    AW.sprinting = wantSprint && !_sprintLock && AW.stamina > 0;
+    if (AW.sprinting) {
+        AW.stamina = Math.max(0, AW.stamina - STANCE.staminaDrain * dt);
+        if (AW.stamina <= 0) _sprintLock = true;
+    } else {
+        AW.stamina = Math.min(AW.maxStamina, AW.stamina + STANCE.staminaRegen * dt);
+    }
+}
+
+export function tryJump() {
+    if (AW.state !== 'playing' || !_grounded || AW.crouching) return;
+    _velY = STANCE.jumpVel;
+    _grounded = false;
+}
+
 function updatePlayerMovement(dt) {
-    const keys = AW.keys, speed = AW.moveSpeed * dt;
+    const keys = AW.keys;
+    updatePlayerStance(dt);
+    const speed = AW.moveSpeed * dt
+        * (AW.crouching ? STANCE.crouchSpeed : AW.sprinting ? STANCE.sprintSpeed : 1);
     const up = new THREE.Vector3(0, 1, 0);
     const fwd = getForward(); fwd.y = 0; fwd.normalize();
     // Right vector: cross(fwd, up) — the previous code used cross(up, fwd),
@@ -663,11 +736,22 @@ function updatePlayerMovement(dt) {
     if (!checkCollision(nx, nz, 0.5)) { camera.position.x = nx; camera.position.z = nz; }
     else if (!checkCollision(nx, oldZ, 0.5)) camera.position.x = nx;
     else if (!checkCollision(oldX, nz, 0.5)) camera.position.z = nz;
-    camera.position.y = _baseCamY - _reloadDip; // shake adds on top in applyShake
+
+    // Vertical axis. The stance height is the floor the jump arc sits on, so
+    // crouching mid-air still lands correctly and the reload dip and screen
+    // shake compose on top rather than fighting a hard assignment.
+    const stanceY = _baseCamY * (1 - _crouchT * (1 - STANCE.crouchRatio));
+    if (!_grounded) {
+        _velY -= STANCE.gravity * dt;
+        _groundY += _velY * dt;
+        if (_groundY <= 0) { _groundY = 0; _velY = 0; _grounded = true; }
+    }
+    camera.position.y = stanceY + _groundY - _reloadDip; // shake adds on top in applyShake
 }
+let _groundY = 0; // height above the current stance's eye level (jump arc)
 
 function checkCollision(x, z, radius) {
-    const perim = AW.sceneConfig ? AW.sceneConfig.perimeter : { halfW: 55, halfD: 55 };
+    const perim = AW.sceneConfig ? AW.sceneConfig.perimeter : DEFAULT_PERIMETER;
     const hw = perim.halfW - radius, hd = perim.halfD - radius;
     if (x < -hw || x > hw || z < -hd || z > hd) return true;
     for (const ob of AW.obstacles) {
@@ -675,6 +759,40 @@ function checkCollision(x, z, radius) {
             z > ob.z - ob.hd - radius && z < ob.z + ob.hd + radius) return true;
     }
     return false;
+}
+
+// Height-aware variant, for anything that can pass *over* cover — projectiles
+// and sightlines. Movement stays on the 2D checkCollision above; a player at
+// ground level is blocked by any footprint they overlap regardless of height.
+function blockedAt(x, z, y, radius) {
+    const perim = AW.sceneConfig ? AW.sceneConfig.perimeter : DEFAULT_PERIMETER;
+    if (x < -perim.halfW || x > perim.halfW || z < -perim.halfD || z > perim.halfD) return true;
+    for (const ob of AW.obstacles) {
+        if (y > (ob.h ?? 2)) continue; // sails over it
+        if (x > ob.x - ob.hw - radius && x < ob.x + ob.hw + radius &&
+            z > ob.z - ob.hd - radius && z < ob.z + ob.hd + radius) return true;
+    }
+    return false;
+}
+
+// Line of sight between two world points, marched against the obstacle list.
+//
+// Deliberately *not* a THREE.Raycaster: fireWeapon() already pays for a full
+// scene traversal per pellet, and running one of those per enemy per frame
+// would dominate the frame. Walking the same flat AABB array checkCollision
+// uses is a couple of hundred cheap tests and needs no scene graph at all.
+function hasLineOfSight(from, to) {
+    const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.001) return true;
+    // ~1 sample per 1.5 units: fine enough that a wall segment (min half-depth
+    // 0.6) can't slip between samples.
+    const steps = Math.max(2, Math.ceil(dist / 1.5));
+    for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        if (blockedAt(from.x + dx * t, from.z + dz * t, from.y + dy * t, 0)) return false;
+    }
+    return true;
 }
 
 // ── Weapons / shooting ─────────────────────────────────────────────────
@@ -823,22 +941,20 @@ function resetExplosiveBarrels() {
     }
 }
 
-// ── Enemy tracer ───────────────────────────────────────────────────────
-function spawnEnemyTracer(from, to) {
-    const dir = to.clone().sub(from).normalize();
-    const len = 3;
-    const tracer = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, len, 4),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.3, 0) }));
-    tracer.position.copy(from);
-    tracer.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-    world.scene.add(tracer);
-    const speed = 90, maxDist = from.distanceTo(to) + 5; let travelled = 0;
-    _transients.push({ update: (dt) => {
-        const d = speed * dt; tracer.position.addScaledVector(dir, d); travelled += d;
-        if (travelled >= maxDist) { world.scene.remove(tracer); tracer.geometry.dispose(); tracer.material.dispose(); return true; }
-        return false;
-    } });
+// ── Enemy fire ─────────────────────────────────────────────────────────
+// The bolt carries the damage, so a shot can be dodged, blocked by cover, or
+// simply miss. Previously damage was applied instantly on a dice roll and the
+// tracer was decorative, which is why enemy fire felt like it came from nowhere.
+function spawnEnemyProjectile(from, to, damage) {
+    spawnProjectile(_projectileCtx, from, to, { damage });
 }
+const _projectileCtx = {
+    get scene() { return world.scene; },
+    get camera() { return camera; },
+    transients: _transients,
+    blockedAt, onPlayerDamage, playerRadius, playerHalfHeight,
+    onWallHit: (p) => spawnWallSparks(p),
+};
 
 // ── Grenade ────────────────────────────────────────────────────────────
 function throwGrenade() {
@@ -881,7 +997,7 @@ function spawnPickups() {
         const angle = (Math.random() - 0.5) * Math.PI, dist = 8 + Math.random() * 10;
         // Clamp to the actual arena, not a hardcoded 55 — the perimeter is
         // per-scene and pickups used to strand outside the smaller arenas.
-        const perim = AW.sceneConfig ? AW.sceneConfig.perimeter : { halfW: 55, halfD: 55 };
+        const perim = AW.sceneConfig ? AW.sceneConfig.perimeter : DEFAULT_PERIMETER;
         const lx = perim.halfW - 3, lz = perim.halfD - 3;
         const cx = Math.max(-lx, Math.min(lx, camera.position.x + Math.sin(angle) * dist));
         const cz = Math.max(-lz, Math.min(lz, camera.position.z - Math.abs(Math.cos(angle)) * dist));
@@ -1144,6 +1260,9 @@ window.AWAudio = Audio;
 // Debug/diagnostics surface (used by smoke tests; harmless in prod).
 window.AWDebug = {
     AW, WaveManager,
+    // Combat/movement internals, for driving the game from a headless browser.
+    hasLineOfSight, blockedAt, tryJump,
+    get transientCount() { return _transients.length; },
     get enemies() { return WaveManager.activeEnemies.length; },
     get renderer() { return renderer; },
     get composer() { return composer; },
