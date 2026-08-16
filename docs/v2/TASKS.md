@@ -251,16 +251,30 @@ Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§4.7](ROADMAP-V2.md#47-the-webun
   **Done when:** `node tools/validate-missions.mjs` passes, `data-to-json.mjs --check`
   and `gen-pages.mjs --check` exit 0, and the hub shows `jungle` as the first site.
 
-- [ ] **P1.9.2 — Author per-site `waveSet`s as data** · **S**
-  Add a `waveSet` field to each scene's data and author the named sets that give each
-  site its own enemy mix and pacing ([§3.1](ROADMAP-V2.md#31-per-site-mechanical-variation--the-rosters-real-requirement))
-  — e.g. `desert_ranged`, `urban_swarm`, `ocean_air`. `data/waves/<setId>.data.js`
-  already supports this; `classic_10` stays the default and the fallback.
-  **Data only — no runtime wiring here.** The one-line `src/enemies.js` change this
-  task used to carry is now **Unity's** job (P3.4); the web build ignoring `waveSet`
-  is exactly the drift §4.7 permits.
-  **Done when:** every site names a `waveSet` that exists, `data-to-json.mjs --check`
-  exits 0, and a throwaway script confirms each set resolves to real enemy types.
+- [ ] **P1.9.2 — Cross-file validator, then per-site `waveSet`s** · **M**
+  **Build the validator first — it is what makes the rest of this task safe.**
+
+  **(a) `tools/validate-data.mjs`** — generalize `validate-missions.mjs` (fold it in;
+  keep its 11-type and `unlockNode` checks) to also verify **cross-file references**,
+  the gap [risk 11](ROADMAP-V2.md#9-risks) names: every scene's `waveSet` names a set
+  in `data/waves/`; every wave set's `enemies[].type` names a type in
+  `data/enemies.data.js`; every campaign node's `scene` resolves to a
+  `data/scenes/*.data.js`; every `requires`/`unlocks` target exists **and the graph is
+  acyclic** (that cycle check has only ever run as a throwaway script — make it
+  permanent). ~60 LOC on top of what exists, zero deps, same conventions.
+
+  **(b) Then author the waveSets** — add a `waveSet` field per scene and write the
+  named sets that give each site its own enemy mix and pacing
+  ([§3.1](ROADMAP-V2.md#31-per-site-mechanical-variation--the-rosters-real-requirement)):
+  e.g. `desert_ranged` (long sightlines), `urban_swarm` (tight lanes), `ocean_air`
+  (fliers only). `classic_10` stays the default and fallback.
+
+  **Data only — no runtime wiring.** The one-line `src/enemies.js` change this task
+  used to carry is now **Unity's** job (P3.4); the web build ignoring `waveSet` is
+  exactly the drift §4.7 permits.
+  **Done when:** `validate-data.mjs` exits 0 with the new checks live, **and provably
+  fails** on a deliberately broken reference (test it, then revert); every site names
+  a `waveSet` that exists; `data-to-json.mjs --check` exits 0.
 
 - [ ] **P1.9.3 — Author `ocean` + `grid` as scene + mission data** · **M**
   Two net-new sites as `data/scenes/<slug>.data.js` + missions, in the same
@@ -295,12 +309,26 @@ Plan ref: [§6.1](ROADMAP-V2.md#61-setup), [§1.5](ROADMAP-V2.md#15-direction-ch
   fallback; linear colour; ASTC Android / BC7+BC5 Windows.
   **Done when:** an empty scene builds and runs on the target Android device.
 
-- [ ] **P2.2 — Data importer** · **M** *(was P3.1 — moved up, now the keystone of P2)*
+- [ ] **P2.2 — Data importer + the staleness guard** · **M** *(was P3.1 — moved up, now the keystone of P2)*
   `[MenuItem]` editor importer (~200 LOC) reading `data/json/*.json` →
   `SceneConfigSO`, `EnemyTypeSO`, `WaveSetSO`, `WeaponSO`, `MissionSO`, `CampaignSO`,
   11 `ObjectiveSO` subclasses. **Do this before any content work** — it makes all later
   content free, and it is what the whole Phase 0 data effort was for.
-  **Done when:** a `data/` edit round-trips into Unity with **zero hand-editing.**
+
+  **Also build the sync guard from [§4.6](ROADMAP-V2.md#46-unity-import)** — this is
+  what makes divergence (risk 10) mechanical rather than a matter of remembering:
+  - Web side: `tools/data-to-json.mjs` emits **`data/json/manifest.json`**, a content
+    hash over every emitted file (same discipline as `gen-version.mjs`'s `BUILD_ID` —
+    changes iff the data changes).
+  - Unity side: the importer records the manifest it last imported and **refuses to
+    import, loudly, on a mismatch.** **Refusing is the point** — a partial import is
+    what tempts you into hand-patching the Unity side.
+
+  `data/json/` is a **checked-in copy** in the Unity repo (22 files, ~160KB) — fresh
+  repo, **not a fork**, no submodule (§4.6).
+  **Done when:** a `data/` edit round-trips into Unity with **zero hand-editing**, and
+  a deliberately stale copy is **rejected** by the importer rather than silently
+  half-imported (test both directions).
 
 - [ ] **P2.3 — Acquire + baseline the test device** · **S**
   A real ~3-year-old ~$250 phone (Snapdragon 6-series / Dimensity 900 class). **Not the

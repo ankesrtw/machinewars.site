@@ -329,6 +329,39 @@ Unity reuses this schema verbatim via `JsonUtility`/Newtonsoft to
 `MissionSO`, `CampaignSO`, and 11 `ObjectiveSO` subclasses. **Write this as the first
 Unity task, before any content work** — it is what makes all later content free.
 
+**Repo split and sync mechanism — decided 2026-08-17.**
+
+`machinewars-unity` is a **fresh Unity repo, not a fork of this one.** A fork would
+carry `src/`, `play/`, and `vendor/three/` into a repo that never runs them, and imply
+a merge relationship nobody would ever use. §6.1's "separate repo" rule stands for its
+original reason: a Unity project inside this repo (≈1GB `Library/`, `.meta` files
+everywhere, Git LFS) destroys the no-build property.
+
+**`data/json/` is copied into the Unity repo and checked in** — 22 files, ~160KB, text
+only. No submodule: the payload is too small to justify the friction (forgotten
+`--recursive`, detached pointers), and it must work offline.
+
+**The staleness guard — this is what makes risk 10 mechanical instead of a discipline
+problem.** Copies drift silently; that is the entire failure mode. So:
+
+- `tools/data-to-json.mjs` also emits **`data/json/manifest.json`** — a content hash
+  over every emitted JSON file, plus the generating commit. Same content-hash
+  discipline as `tools/gen-version.mjs`'s `BUILD_ID` (§ AGENTS.md Caching): it changes
+  **if and only if** the data changes.
+- The Unity importer **records the manifest hash it last imported**, and **refuses to
+  import — loudly — when the hash it sees disagrees with what the JSON actually
+  hashes to.** A refusal is the point: **partial imports are what create the
+  "just hand-patch it in Unity" temptation**, and hand-patching is how the two copies
+  begin to diverge for real.
+- Updating the Unity side is therefore one deliberate step: run the exporter here,
+  copy `data/json/` across, commit. The hash tells you unambiguously whether you did.
+
+**The rule that follows, and it is not negotiable:** when the importer rejects
+something, **fix `data/` and re-import.** Never hand-edit the generated
+ScriptableObject. If a Unity-only concept genuinely cannot be expressed in `data/`,
+that is a **schema gap to close in `data/`** (§4.7), not a reason to author it
+Unity-side.
+
 ### 4.7 The web/Unity split — what "frozen" actually means
 
 **Decided 2026-08-17.** §1 already said web gameplay is frozen. This sharpens it,
@@ -663,13 +696,31 @@ projected work out of the plan.
    approach, fall-off-edge rules. No longer a *GIS* problem (no bathymetry needed), but
    still the roster's highest-effort row. Its flier-heavy design leans on `flies`/
    `flyHeight`, which already exist.
-10. **Two repos will diverge — now the sharpest risk in the plan**, because §4.7 removes
-    the web build as a correctness check on `data/`. The `data/` export is the whole
-    contract. **Mitigations, all required:** keep `data-to-json.mjs --check` and
-    `validate-missions.mjs` green; give the Unity importer a check mode that fails on
-    stale JSON; and **treat an importer failure as a schema bug to fix in `data/`**, never
-    as something to hand-patch on the Unity side — hand-patching is exactly how the two
-    copies start diverging.
+10. **Two repos will diverge** — §4.7 removes the web build as a correctness check on
+    `data/`, so the export is the whole contract. **Mitigation is now mechanical, not
+    a matter of discipline** (§4.6): `data/json/` is a checked-in copy guarded by a
+    content-hash `manifest.json`, and the Unity importer **refuses to import** when the
+    hash disagrees rather than importing partially. Plus: keep `data-to-json.mjs
+    --check` and the data validator green, and **fix importer failures in `data/`,
+    never by hand-editing the generated ScriptableObject.**
+
+    **Severity, stated plainly:** this is a *rework and confusion* risk, **not a
+    runtime one.** Data is baked into ScriptableObjects at Unity **edit time**, so bad
+    data cannot reach a player as a crash — it fails on the developer's machine,
+    before a build exists. What it actually costs is silently overwritten Unity-side
+    fixes and a `data/` that has quietly stopped being the source of truth.
+
+11. **Referential integrity across `data/` files is only partly checked.**
+    `data-to-json.mjs` catches shape violations (functions/`undefined`, with a precise
+    key path — importantly catching what `JSON.stringify` would silently *drop*), and
+    `validate-missions.mjs` catches objective types outside the 11-type cap and
+    `unlockNode`s naming nonexistent nodes. **Not yet checked:** that a scene's
+    `waveSet` names a set that exists, that a wave set's `enemies[].type` names a real
+    enemy type, that a campaign node's `scene` resolves, and that the graph stays
+    acyclic (that last check has only ever run as a throwaway script).
+    **This is exactly the class of bug P1.9.2 introduces** — it is the task that starts
+    naming per-site `waveSet`s. Close the gap in that task, before the content that
+    needs it is authored.
 
 ---
 

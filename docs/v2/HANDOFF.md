@@ -55,6 +55,34 @@ risks 8+10 all updated to match.
 and regenerate all 9 pages. That was correct under the plan as written then and is
 harmless — but **don't repeat that pattern.**
 
+**Repo split + divergence guard decided (2026-08-17), now ROADMAP-V2 §4.6.**
+`machinewars-unity` is a **fresh Unity repo, not a fork** (a fork would carry
+`src/`/`play/`/`vendor/` into a repo that never runs them). **`data/json/` is a
+checked-in copy** there — 22 files, ~160KB, no submodule; too small to justify the
+friction and it must work offline.
+
+**The guard that makes risk 10 mechanical instead of a discipline problem:**
+`data-to-json.mjs` will also emit **`data/json/manifest.json`** (content hash over
+every emitted file, same discipline as `gen-version.mjs`'s `BUILD_ID`), and the Unity
+importer **refuses to import on a hash mismatch** rather than importing partially —
+**refusing is the point**, since a partial import is what tempts hand-patching the
+Unity side. Built as part of **P2.2**.
+
+**Severity answered (user asked whether this is serious for mobile gameplay): no.**
+Data bakes into ScriptableObjects at Unity **edit time**, so bad data cannot reach a
+player as a crash — it fails on the dev machine before a build exists. The real cost
+is rework and confusion: silently overwritten Unity-side fixes, and a `data/` that has
+quietly stopped being the source of truth.
+
+**One real gap found while answering that** — now ROADMAP-V2 **risk 11**, and folded
+into **P1.9.2**: nothing currently checks *cross-file* references. `data-to-json.mjs`
+checks shape and `validate-missions.mjs` checks objective types + `unlockNode`s, but
+**nothing verifies that a scene's `waveSet` exists, that a wave set's enemy types are
+real, that a node's `scene` resolves, or that the graph is acyclic** (the cycle check
+has only ever been a throwaway script). That is precisely the bug class P1.9.2
+introduces, since it is the task that starts naming per-site waveSets — so P1.9.2 now
+builds `tools/validate-data.mjs` **first**, then authors the waveSets.
+
 ---
 
 **P1.9.1 done (2026-08-17).** `ghats`/`ghats_east` retired from the campaign
@@ -445,16 +473,24 @@ not throwaway work.
 were rewritten because of it. **Both are now `data/`-only tasks; do not touch `src/`
 or regenerate pages.**
 
-**Start P1.9.2 — author per-site `waveSet`s as data** (·S). Add a `waveSet` field to
-each scene's `data/scenes/*.data.js` and author the named sets that give each site its
-own enemy mix and pacing (§3.1) — e.g. `desert_ranged` (long sightlines),
-`urban_swarm` (tight lanes), `ocean_air` (fliers only). `data/waves/<setId>.data.js`
-already supports this and `classic_10` stays the default/fallback.
+**Start P1.9.2 — validator first, then per-site `waveSet`s** (·M). Two halves, in
+this order:
+
+**(a) Build `tools/validate-data.mjs`** — fold in `validate-missions.mjs` and add the
+**cross-file** checks nothing currently does (risk 11): scene `waveSet` → exists in
+`data/waves/`; wave set `enemies[].type` → exists in `data/enemies.data.js`; campaign
+node `scene` → resolves to a `data/scenes/*.data.js`; `requires`/`unlocks` targets
+exist **and the graph is acyclic** (make that permanent — it has only ever been a
+throwaway script). ~60 LOC, zero deps, same conventions as the existing tools.
+**Prove it fails** on a deliberately broken reference before trusting it.
+
+**(b) Then author the waveSets** — a `waveSet` field per scene plus the named sets
+(§3.1): `desert_ranged` (long sightlines), `urban_swarm` (tight lanes), `ocean_air`
+(fliers only). `classic_10` stays default/fallback.
+
 **No runtime wiring** — the `src/enemies.js` one-liner this task used to carry is now
 Unity's job (P3.4), and the web build ignoring `waveSet` is exactly the drift §4.7
-permits. **Done when:** every site names a `waveSet` that exists, `data-to-json.mjs
---check` exits 0, and a throwaway script confirms each set resolves to real enemy
-types (that script is the verification now — not a browser).
+permits. **Verification is the validator, not a browser.**
 
 Then **P1.9.3** (author `ocean` + `grid` as scene + mission data, no pages). Take the
 user up on **AI concept art for `ocean` and `space`** via `tools/gen-art.mjs` before
@@ -853,3 +889,28 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   a scope banner on Phase 1.9. Separately corrected a stale `AGENTS.md` claim that
   P1.9.1 had disproved: sector-count copy is **generated** by `gen-pages.mjs` from
   `MISSION_ORDER.length`, not hand-maintained across 9 pages. Docs only, no code.
+- **2026-08-17 (repo split + divergence guard)** — User asked whether the risk-10
+  divergence warning is serious for mobile gameplay, and whether Unity should be a
+  separate repo / fork. **Answered: not a runtime risk** (data bakes into
+  ScriptableObjects at Unity *edit* time, so bad data fails on the dev machine, never
+  as a player-facing crash) — it is a rework-and-confusion risk. **Repo decision
+  (user): fresh `machinewars-unity` repo, not a fork**, with `data/json/` as a
+  **checked-in copy** (22 files, ~160KB) rather than a submodule — too small to
+  justify submodule friction, and it must work offline. A fork was rejected because it
+  would carry `src/`/`play/`/`vendor/` into a repo that never runs them. Written up as
+  **ROADMAP-V2 §4.6**, together with the guard that makes divergence mechanical rather
+  than a discipline problem: `data-to-json.mjs` emits **`data/json/manifest.json`**
+  (content hash over every emitted file, same discipline as `gen-version.mjs`'s
+  `BUILD_ID`) and the Unity importer **refuses to import on a hash mismatch** instead
+  of importing partially — refusing is the point, since partial imports are what tempt
+  hand-patching the Unity side. Folded into **P2.2** ("+ the staleness guard"), whose
+  done-when now requires a deliberately stale copy to be *rejected*. Risk 10 rewritten
+  to point at the mechanism and to state severity plainly. **New risk 11 + a real gap
+  found while answering:** nothing checks *cross-file* references — `data-to-json.mjs`
+  checks shape, `validate-missions.mjs` checks objective types and `unlockNode`s, but
+  nothing verifies a scene's `waveSet` exists, a wave set's enemy types are real, a
+  node's `scene` resolves, or that the graph is acyclic (cycle check has only ever been
+  a throwaway script). That is exactly the bug class **P1.9.2** introduces, so P1.9.2
+  now builds `tools/validate-data.mjs` **first** (folding in `validate-missions.mjs`),
+  proves it fails on a broken reference, and only then authors the waveSets. Docs only,
+  no code; all three existing checks still exit 0.
