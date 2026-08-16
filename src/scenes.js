@@ -19,6 +19,29 @@ export { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER };
 
 const _texLoader = new THREE.TextureLoader();
 
+// Read a heightmap PNG's pixel data for CPU-side vertex displacement (a
+// THREE.Texture alone is GPU-opaque — geometry needs the raw samples).
+// Canvas 2D is 8-bit/channel regardless of the source PNG's bit depth, so a
+// 16-bit heightmap downsamples to 256 levels here; over build-heightmap.mjs's
+// typical few-hundred-metre elevation range that's sub-metre resolution,
+// plenty for a horizon-only displaced mesh (not the hand-authored combat floor).
+function loadHeightmapPixels(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = img.width; c.height = img.height;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const { data } = ctx.getImageData(0, 0, img.width, img.height);
+            resolve({ data, width: img.width, height: img.height });
+        };
+        img.onerror = reject;
+        img.src = url;
+    });
+}
+
 // Small scattered clutter (crates, barrels) registers a slightly tightened
 // footprint. Crates spawn 1-3 deep per position with jitter, so full-size boxes
 // fuse neighbours into one impassable blob; pulling each in leaves the gaps a
@@ -279,6 +302,12 @@ export class World {
     // ── Ground ──────────────────────────────────────────────────────
     _buildGround(cfg) {
         const gc = cfg.ground;
+
+        if (gc.type === 'heightmap') {
+            this._buildHeightmapGround(cfg);
+            return;
+        }
+
         const geo = new THREE.PlaneGeometry(gc.width, gc.height, gc.subdivisions, gc.subdivisions);
         geo.rotateX(-Math.PI / 2);
         // Vertex displacement — rough terrain, flat play zone
@@ -317,8 +346,15 @@ export class World {
         ground.receiveShadow = true;
         this.scene.add(this._track(ground));
 
-        // Slab patches. Keep the deployment area uncluttered: a floor-sized
-        // patch right in front of the camera read as a dark wall/obstacle.
+        this._buildSlabPatches(cfg);
+    }
+
+    // Slab patches. Keep the deployment area uncluttered: a floor-sized
+    // patch right in front of the camera read as a dark wall/obstacle.
+    // Shared by every ground type — extracted so the heightmap branch gets
+    // the same authored-floor visual language without duplicating it.
+    _buildSlabPatches(cfg) {
+        const gc = cfg.ground;
         const slabColor = gc.slabColor || [0.35, 0.28, 0.22];
         const slabMat = new THREE.MeshStandardMaterial({ color: col3(slabColor), roughness: 0.9 });
         for (const [x, z] of (gc.slabPositions || [])) {
@@ -331,6 +367,81 @@ export class World {
             slab.receiveShadow = true;
             this.scene.add(slab);
         }
+    }
+
+    // GIS heightmap ground (P1.4). Built from tools/gis/build-heightmap.mjs +
+    // build-albedo.mjs output (assets/terrain/<slug>/{heightmap,albedo}.{png,json}).
+    //
+    // "Terrain real, layout authored" (plan §5.4): the mesh spans
+    // gc.visibleRadiusM around the origin — a crop of the full horizonExtentM
+    // bake, sized to stay inside the camera's far plane (400, src/main.js) —
+    // and DEM relief is displaced everywhere OUTSIDE gc.flatZoneRadius. Inside
+    // that radius the ground stays flat: that is the hand-authored combat
+    // floor from plan §5.4, and real DEM at that scale reads as a smooth
+    // tilted plane anyway (docs/v2/HANDOFF.md "the load-bearing finding").
+    //
+    // Async like the `type: 'texture'` branch's texture load: a flat
+    // placeholder plane goes up synchronously so build() never blocks, then
+    // displacement + the real albedo swap in once the bake files load.
+    _buildHeightmapGround(cfg) {
+        const gc = cfg.ground;
+        const size = gc.visibleRadiusM * 2;
+        const geo = new THREE.PlaneGeometry(size, size, gc.subdivisions, gc.subdivisions);
+        geo.rotateX(-Math.PI / 2);
+        geo.computeVertexNormals();
+
+        const mat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0.0 });
+        const sp = gc.specular || [0.06, 0.05, 0.04];
+        mat.roughness = 1 - Math.min(0.5, (sp[0] + sp[1] + sp[2]));
+        if (gc.fallbackColor) mat.color = col3(gc.fallbackColor);
+
+        const ground = new THREE.Mesh(geo, mat);
+        ground.receiveShadow = true;
+        this.scene.add(this._track(ground));
+
+        this._buildSlabPatches(cfg);
+
+        const metaUrl = withVersion(ASSET_BASE + gc.metadataUrl);
+        const heightUrl = withVersion(ASSET_BASE + gc.heightmapUrl);
+        const albedoUrl = withVersion(ASSET_BASE + gc.albedoUrl);
+
+        fetch(metaUrl).then(r => r.json()).then((meta) => {
+            if (this._disposed) return;
+            return loadHeightmapPixels(heightUrl).then(({ data, width, height }) => {
+                if (this._disposed) return;
+                const flatR = gc.flatZoneRadius || 18;
+                const pos = geo.attributes.position;
+                // meta.extentM covers the full bake; sample only the visibleRadiusM
+                // crop out of its center, per the metadata's own denormalization
+                // formula (heightmap.json "notes" — kept in one place, there).
+                const texelsPerM = (width - 1) / meta.extentM;
+                for (let i = 0; i < pos.count; i++) {
+                    const x = pos.getX(i), z = pos.getZ(i);
+                    const dist = Math.sqrt(x * x + z * z);
+                    if (dist < flatR) { pos.setY(i, 0); continue; }
+                    const sx = Math.round(width / 2 + x * texelsPerM);
+                    const sy = Math.round(height / 2 + z * texelsPerM);
+                    const cx = Math.max(0, Math.min(width - 1, sx));
+                    const cy = Math.max(0, Math.min(height - 1, sy));
+                    const texel = data[(cy * width + cx) * 4]; // R channel, grayscale
+                    const elevM = meta.elevationMin + (texel / 255) * meta.elevationRange;
+                    // Blend flat floor -> real relief over the last few metres so the
+                    // authored/real seam isn't a visible crease.
+                    const blend = Math.min(1, (dist - flatR) / 8);
+                    pos.setY(i, (elevM - meta.elevationMin) * blend);
+                }
+                geo.computeVertexNormals();
+                pos.needsUpdate = true;
+            });
+        }).catch((e) => console.warn(`heightmap ground: failed to load ${gc.metadataUrl}`, e));
+
+        _texLoader.load(albedoUrl, (tex) => {
+            if (this._disposed) return;
+            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(gc.textureUScale || 8, gc.textureVScale || 8);
+            tex.colorSpace = THREE.SRGBColorSpace;
+            mat.map = tex; mat.needsUpdate = true;
+        });
     }
 
     // ── Perimeter walls + gate ──────────────────────────────────────

@@ -173,11 +173,19 @@ Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline)
   **Done when:** Ghats heightmap + albedo exist in `assets/terrain/ghats/` with metadata
   that round-trips.
 
-- [ ] **P1.4 — `ground.type: 'heightmap'` in `src/scenes.js`** · **M**
+- [x] **P1.4 — `ground.type: 'heightmap'` in `src/scenes.js`** · **M** *(2026-08-16, code
+  done, unwired — see note)*
   One new branch in `_buildGround()` (`src/scenes.js:280`) consuming the heightmap +
   metadata. **This must be the *only* engine change Phase 1 requires** — that is the
   schema test from plan §5.5. If it needs more, stop and fix the schema.
   **Done when:** the existing 8 arenas are unaffected and a heightmap ground renders.
+  **Note:** `_buildHeightmapGround()` written and `gen-pages.mjs --check` + `node --check`
+  pass — existing 8 arenas confirmed unaffected. **Not yet visually verified** — no scene
+  config sets `ground.type: 'heightmap'` yet, so nothing calls this branch in the browser.
+  Wiring a real `ghats` scene is P1.5, which was paused: adding a new site to
+  `scenes-data.js` is exactly the kind of authoring work the P0 gate blocks (see below).
+  Re-open this task's checkbox to unchecked if P0 restructures `ground` config shape in a
+  way `_buildHeightmapGround()` needs to follow.
 
 - [ ] **P1.5 — `emit-scene.mjs` → `data/scenes/ghats.data.js`** · **M**
   Heightmap metadata → a scene data stub: `ground`, `perimeter`, and `lighting` seeded
@@ -378,7 +386,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
 | P0 — Data foundation | 8 | 0 | ⬜ |
-| P1 — GIS + first site | 6 | 3 | ⬜ |
+| P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |
 | P4 — Campaign spine | 7 | 0 | ⬜ **← MSP** |

@@ -18,6 +18,6 @@
     "decode": "(R*256 + G + B/256) - 32768",
     "attribution": "AWS Terrain Tiles (Mapzen terrarium format)"
   },
-  "generatedAt": "2026-08-16T18:13:34.353Z",
+  "generatedAt": "2026-08-16T18:22:02.209Z",
   "notes": "heightmap.png is a 16-bit grayscale PNG, texel 0 = elevationMin meters, 65535 = elevationMax meters. meters = elevationMin + (texel/65535) * elevationRange. metersPerTexel * (size-1) = extentM, the square ground footprint this heightmap covers, centered on originLatLon."
 }

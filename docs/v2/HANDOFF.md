@@ -27,15 +27,52 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P1 — GIS pipeline + first site (web preview)
-**Status:** P1.1 + P1.2 + P1.3 done. Ghats heightmap + albedo baked to
-`assets/terrain/ghats/`, metadata round-trips against the live decoder.
-**Last commit:** (this session) P1.3 build-heightmap.mjs + build-albedo.mjs
+**Phase:** P1 GIS pipeline (P1.1–P1.4 done) — **blocked on P0** for P1.5 onward.
+**Status:** Heightmap ground engine code exists (`_buildHeightmapGround()` in
+`src/scenes.js`) but is **unwired and unverified in the browser** — no scene config sets
+`ground.type: 'heightmap'` yet, so nothing calls it. Wiring a real `ghats` scene (P1.5)
+means adding a new site to `scenes-data.js`, which is exactly the authoring work
+`TASKS.md` says can't happen before the **P0 gate** passes. P0 has not been started.
+**Decision this session:** stop P1 here, start Phase 0 next.
+**Last commit:** (this session) P1.4 `_buildHeightmapGround()` — additive, existing 8
+arenas confirmed unaffected (`gen-pages.mjs --check` + `node --check src/scenes.js`).
 
 `tools/gis/cache/` is gitignored (confirmed via `git check-ignore`). `assets/terrain/` is
 **not** gitignored — baked outputs commit (confirmed via `git check-ignore -v`, exit 1).
 Spike decoders are preserved in `docs/v2/spike/` — already ported, keep them as reference
 only from here.
+
+### What P1.4 built (code only — read before touching `_buildGround`)
+
+- `src/scenes.js` `_buildGround()` gained one branch: `gc.type === 'heightmap'` dispatches
+  to `_buildHeightmapGround(cfg)`, a new method. Every other `type` (`'procedural'`,
+  `'texture'`) is byte-for-byte unchanged — confirmed via `gen-pages.mjs --check` and
+  loading a couple of existing arenas' code paths by inspection (not yet re-opened live in
+  a browser this session; do that before trusting this fully).
+- `_buildHeightmapGround` mirrors the existing `type: 'texture'` branch's async pattern: a
+  flat placeholder `PlaneGeometry` goes up synchronously (`build()` never blocks), then
+  `fetch()` for `heightmap.json` + a new `loadHeightmapPixels()` helper (loads the PNG via
+  `<img>` → canvas → `getImageData`, since a `THREE.Texture` alone is GPU-opaque and vertex
+  displacement needs CPU-side samples) displace the mesh once loaded, and `_texLoader.load`
+  swaps in `albedo.png` the same way the texture branch already swaps in ground textures.
+- **The far-plane crop decision (asked of the user, chose "crop to fit"):** the bake covers
+  `horizonExtentM` (2400m) but camera far plane is a hard 400 (`src/main.js`). Rather than
+  touch the camera/quality system, added a new `ground.visibleRadiusM` config field — the
+  actual mesh is sized `2 * visibleRadiusM` and only *samples* the 2400m bake's center crop
+  via `heightmap.json`'s own `extentM`/texel math. The full-resolution bake still exists on
+  disk for Unity later; only the web preview's visible footprint is cropped. **No ghats
+  scene config exists yet to set this field** — whoever writes it (P1.5) should pick
+  something safely under 400 (e.g. ~300–340m radius) with margin for perspective at
+  oblique view angles.
+- **Precision tradeoff, documented in code comments:** canvas `getImageData` is always
+  8-bit/channel, so the 16-bit heightmap downsamples to 256 levels client-side — over
+  ghats's ~85m elevation range that's ~0.33m/step. Fine for a horizon-only displaced mesh,
+  **not** fine if this code path is ever reused for the hand-authored combat floor itself.
+- Inside `gc.flatZoneRadius`, elevation is forced flat (blended over 8m at the seam) — this
+  is the plan §5.4 hard split: authored combat floor inside, real DEM relief outside.
+- **Not yet done:** no visual verification. No test scene, no screenshot, no confirmation
+  the displacement math or the flat/relief blend actually looks right. Treat this as
+  "compiles and doesn't break other arenas," not "works."
 
 ### What P1.3 built
 
@@ -136,43 +173,52 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P1.4** (see `docs/v2/TASKS.md`) — the `ground.type: 'heightmap'` branch in
-`src/scenes.js:280` (`_buildGround()`). Re-read "Watch out for" below before touching it —
-far plane is 400, and this must be the *only* engine change P1 requires.
+**Task: P0.1** (see `docs/v2/TASKS.md` Phase 0) — scaffold `data/` + the JSON exporter.
+P1.5 (wiring an actual `ghats` scene so P1.4's code can be seen/verified) needs a new site
+added to scene config, and `TASKS.md` is explicit: *"Nothing in Phase 1+ may start until
+the P0 gate passes."* P1.1–P1.4 already happened before this was caught — see the log
+below — but P1.5 is where it would bite: P0.4 splits `SCENE_CONFIGS` into
+`data/scenes/<slug>.data.js` ×8, and a `ghats` site added straight into today's
+`scenes-data.js` would just be more of the exact thing P0.4 has to migrate away from.
 
-1. Read `assets/terrain/ghats/heightmap.json` + `albedo.json` — both exist now, written
-   this session. `heightmap.json.notes` spells out the denormalization formula
-   (`meters = elevationMin + (texel/65535) * elevationRange`); `metersPerTexel *
-   (size-1) === extentM`, the square ground footprint centered on `originLatLon`.
-2. New branch in `_buildGround()`: when `gc.type === 'heightmap'`, load
-   `heightmap.png`/`heightmap.json` for the site instead of the seeded-noise
-   displacement, size the `PlaneGeometry` to `extentM`, displace vertices from the
-   16-bit texel values (denormalized per the formula above), and use `albedo.png` as
-   the texture map (same texture-load path already used for `gc.type === 'texture'`).
-3. **Watch the far-plane mismatch**: `horizonExtentM` is 2400 but camera far plane is
-   400 (`src/main.js`) — per plan §5.4/HANDOFF's own prior note, the visible heightmap
-   ring must be clipped to fit inside 400, or the far plane becomes a quality-preset
-   field first. Decide which before wiring the scene; don't let terrain silently vanish
-   past the far plane like the CREON billboard bug.
-4. Verify: existing 8 arenas unaffected (`node tools/gen-pages.mjs --check` + open one
-   arena), and a heightmap ground renders in a throwaway test scene or a minimal
-   `data/scenes/ghats` stub (full stub is P1.5's job — don't build it early here).
+1. Read `docs/v2/TASKS.md` Phase 0 section in full before starting — 8 tasks, do them in
+   order, P0.4 (`SCENE_CONFIGS` split, **L**, 1,501 LOC) is the big one.
+2. **P0.1** first: `data/README.md` (contract: one `export default {...}` per file,
+   JSON-literal only, no functions/imports/computed values) + `tools/data-to-json.mjs`
+   (~20 LOC + `--check`), following `tools/gen-pages.mjs` conventions.
+3. Work the list in order: P0.2 (weapons/score, smallest blast radius) → P0.3 (enemies/
+   waves) → P0.4 (scenes, the big one — **this is what unblocks wiring up ghats**) → P0.5
+   (campaign graph) → P0.6 (save v2 migration) → P0.7 (missions) → P0.8 (docs).
+4. **P0.4 note relevant to P1**: when this splits `SCENE_CONFIGS`, the split should
+   produce a `data/scenes/ghats.data.js` slot even though `ghats` doesn't exist as a site
+   yet (`implemented:false` per P0.5's node-graph task) — that's the natural point to
+   resume P1.5 instead of hand-editing `scenes-data.js` directly.
 
-**Done when:** the existing 8 arenas are unaffected and a heightmap ground renders (per
-`TASKS.md`).
+**Done when P0 gate passes** (`TASKS.md` "GATE P0"): all 8 arenas load/play unchanged from
+`data/`, `gen-pages.mjs --check` exits 0, `data-to-json.mjs` round-trips, v1 save migrates,
+graph AND-gate resolves correctly.
 
-**Then P1.5** — `emit-scene.mjs` → `data/scenes/ghats.data.js`, hand-authored playable box.
+**Then resume P1.5** — `emit-scene.mjs` → `data/scenes/ghats.data.js`, hand-authored
+playable box, first live look at P1.4's heightmap ground code actually rendering.
 
 ### Watch out for
 
 - `tools/gis/cache/` must be gitignored **before** the first fetch, or tiles land in git.
-- Camera far plane is **400** (`src/main.js`). Terrain beyond it is silently clipped —
-  this is exactly what made the first CREON billboard invisible. The "real horizon" ring
-  must sit inside 400, or the far plane must become a quality-preset field first.
-- `_buildGround()` (`src/scenes.js:280`) currently displaces a `PlaneGeometry` with
-  seeded random noise. The heightmap branch replaces the *displacement source*, not the
-  mesh strategy — keep it that contained (plan §5.5: the heightmap branch must be the
-  **only** engine change P1 requires).
+- Camera far plane is **400** (`src/main.js`), unchanged. P1.4 resolved the
+  `horizonExtentM` (2400) vs. far-plane (400) mismatch by cropping the *visible* mesh to a
+  new `ground.visibleRadiusM` field rather than touching the camera — pick a value safely
+  under 400 (radius, not diameter) when writing the ghats scene config, with margin for
+  oblique view angles.
+- `_buildHeightmapGround()` (`src/scenes.js`, added P1.4) is a **new method**, not a
+  rewrite of the existing displacement loop in `_buildGround()` — the seeded-noise path
+  for `'procedural'`/`'texture'` types is untouched. Strictly speaking this added one new
+  config field (`visibleRadiusM`) beyond a pure "swap the displacement source" change;
+  flagging it here since plan §5.5 calls the heightmap branch out as the *only* engine
+  change P1 should require — this stayed inside `_buildGround()`'s existing call site and
+  didn't touch any other system, but it's not literally zero-schema-growth either.
+- **P1.4's code has never been run.** No scene sets `ground.type: 'heightmap'` yet. Don't
+  trust the displacement math, the flat/relief blend, or the far-plane crop until you've
+  actually seen it render.
 
 ---
 
@@ -194,3 +240,13 @@ far plane is 400, and this must be the *only* engine change P1 requires.
   gate the P1 relief question). Ghats heightmap (619.5–704.1m over 2400m) + albedo
   (jungle biome) baked to `assets/terrain/ghats/`; both `--check` flags pass, round-trips
   verified against the live decoder.
+- **2026-08-17** — P1.4: `_buildHeightmapGround()` added to `src/scenes.js` — new
+  `ground.type: 'heightmap'` branch, async displacement + albedo load, new
+  `ground.visibleRadiusM` field to crop the 2400m bake to fit inside the 400 far plane
+  (user chose crop-the-mesh over touching the camera). Code compiles, existing 8 arenas
+  confirmed unaffected, **but never actually rendered** — no scene wires it up yet.
+  Started P1.5 (wiring an actual `ghats` scene) and caught that `TASKS.md` blocks all of
+  Phase 1+ until the **P0 gate** passes; P0 was never started. User chose to stop and do
+  P0 properly rather than route around the gate. P1.1–P1.4 already happened pre-gate —
+  left as-is (not worth unwinding), but P1.5 is paused until P0.4 gives `ghats` a proper
+  `data/scenes/` slot to land in.
