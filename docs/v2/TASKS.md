@@ -112,7 +112,7 @@ Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
   tested with the flag both on and off; completing `urban` then `arctic` unlocks `ocean`
   and nothing earlier.
 
-- [ ] **P0.7 — Mission + objective schema** · **M**
+- [x] **P0.7 — Mission + objective schema** · **M** *(2026-08-17)*
   `data/missions/<id>.data.js` per [§4.3](ROADMAP-V2.md#43-mission--objective-schema),
   with `rewards.unlockNode`. Author the **11-type objective vocabulary** as a documented
   enum in `data/objectives.schema.md` — this is a **hard cap; do not add a 12th without
@@ -384,7 +384,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 6 | ⬜ |
+| P0 — Data foundation | 8 | 7 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |

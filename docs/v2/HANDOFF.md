@@ -27,9 +27,41 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P0 — Data foundation (P0.1–P0.6 done). P1 is paused at P1.4 (P1.1–P1.4
-done, P1.5 blocked until the P0 gate passes — see below).
-**Status:** `WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, `WAVE_CONFIGS`, and
+**Phase:** P0 — Data foundation (P0.1–P0.7 done, P0.8 next). P1 is paused at P1.4
+(P1.1–P1.4 done, P1.5 blocked until the P0 gate passes — see below).
+**Status (P0.7):** `data/objectives.schema.md` documents the 11-type objective
+vocabulary hard cap (`survive_waves`, `kill_count`, `kill_type`, `protect`,
+`reach_zone`, `time_limit`, `no_damage`, `weapon_restriction`, `destroy_targets`,
+`rescue`, `escort`) with each type's fields and meaning, per ROADMAP-V2 §4.3.
+`data/missions/<id>.data.js` ×8: `m101` (warzone), `m102` (desert), `m201` (urban),
+`m202` (arctic), `m301` (alien), `m401` (grid — the scripted-defeat mission, `outcome:
+'scripted_defeat'` + `finale` block matching §4.4's example exactly), `m501` (space),
+`m601` (mars). Each has `node` (campaign graph id), `scene`, `briefing`/`debrief`
+(CREON-voiced, short), `waveSet: 'classic_10'` (the only wave set that exists),
+`objectives` (one required `survive_waves:10` + one `optional:true` flavor objective
+per site mission — kept intentionally simple since `protect`/`destroy_targets`/
+`rescue`/`escort` all depend on the `Target`/`Entity` primitives from track-b §2.5,
+**not built**; this task only authors shape), and `rewards.unlockNode` pointing at
+the next campaign node. Missions map 1:1 to the 7 `implemented:true` nodes in
+`data/campaign.data.js` (warzone/desert/urban/arctic/alien/grid/space) plus `mars`
+(implemented:true but `locked:true` in the graph — mission authored anyway so the
+reward chain is complete; the lock is a presentation gate, not a missing mission).
+`jungle` (`data/scenes/jungle.data.js`) has **no** mission — it has no campaign node
+(superseded by the `ghats`/`ghats_east` split, both still `implemented:false`); see
+P0.4's note below, unchanged. `tools/validate-missions.mjs` (new, zero-dep, same
+conventions as `gen-pages.mjs`/`data-to-json.mjs`) checks every mission's
+`objectives[].type` against the 11-type table and every `rewards.unlockNode` /
+`node` against `data/campaign.data.js`'s node ids, plus that any `outcome:
+'scripted_defeat'` mission has a `finale` block. All 8 pass. `node
+tools/data-to-json.mjs` emits `data/json/missions/*.json` for all 8 (`m601`'s
+`rewards.unlockNode: null` — mars has no next node — round-trips fine, `null` is a
+valid JSON literal). `--check` on both `data-to-json.mjs` and `gen-pages.mjs` still
+exit 0 (this task touched no scene/page files).
+**Last commit:** (this session) P0.7 mission + objective schema.
+
+### What P0.2–P0.6 built (prior sessions)
+
+`WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, `WAVE_CONFIGS`, and
 `SCENE_CONFIGS` are all externalized. `data/enemies.data.js` holds the full per-type
 enemy definitions (hp/speed/damage/etc.) with `score` folded in as one more field per
 type — no separate lookup. `data/waves/classic_10.data.js` holds the original 10-wave
@@ -62,7 +94,6 @@ always did to the v1 fields, and additionally calls `completeNode()` so the grap
 advance too when the completed scene is also a campaign node (true for all 8 today).
 `UNLOCK_ALL_ARENAS` renamed `UNLOCK_ALL_NODES`, still `true` (left on for authoring),
 now also blanket-unlocks every campaign node, not just arenas.
-**Last commit:** (this session) P0.6 save.js v2 migration + `completeNode()`.
 
 P1's heightmap ground engine code (`_buildHeightmapGround()` in `src/scenes.js`, P1.4)
 still exists and is still **unwired and unverified in the browser** — no scene config sets
@@ -226,19 +257,34 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.7** (see `docs/v2/TASKS.md` Phase 0) — mission + objective schema.
-`data/missions/<id>.data.js` per ROADMAP-V2 §4.3, `rewards.unlockNode` (not
-`unlockArena`). Author the 11-type objective vocabulary as a documented enum in
-`data/objectives.schema.md` —**hard cap, do not add a 12th without deleting one.** One
-real mission per implemented site (8 today: warzone, desert, urban, arctic, alien, space,
-mars, plus jungle/ghats — check which slug the mission targets, since `jungle` hasn't
-been split into `ghats`/`ghats_east` yet, see P0.4's note), plus `m401` for `grid` with
-its `finale` block (§4.4). No runtime — Unity implements it; this task authors data and
-validates shape only. **Done when:** `data-to-json.mjs` emits valid JSON for every
-mission, and a validator confirms every `objectives[].type` is one of the 11 and every
-`rewards.unlockNode` exists in `data/campaign.data.js`'s graph.
+**Task: P0.8** (see `docs/v2/TASKS.md` Phase 0) — amend the docs. Add the ROADMAP-V2
+pointer to `docs/ROADMAP.md`; record the Option 1 → hybrid softening in
+`docs/track-e-gis.md`; mark `docs/track-a-web-android.md` cancelled noting the two
+salvaged items; add to `AGENTS.md` that **web gameplay is frozen** and the repo is now
+an authoring tool, plus a `data/` section in the module map. **Done when:** a fresh
+session reading `AGENTS.md` alone would not start web gameplay work.
 
-Then P0.8 (docs) → **GATE P0**.
+Then **GATE P0** — check all four conditions in `TASKS.md` before opening Unity.
+
+### P0.7 note for whoever writes P0.8 (docs) or later touches missions
+
+`data/missions/*.data.js` ×8 map 1:1 to the 7 `implemented:true` campaign nodes
+(warzone/desert/urban/arctic/alien/grid/space) plus `mars` (implemented but
+`locked:true` — mission written anyway). **`jungle` has no mission** — it has no
+campaign node (superseded by the unsplit `ghats`/`ghats_east`, both
+`implemented:false`); don't be surprised `data/scenes/jungle.data.js` is orphaned from
+the mission/campaign layer, that's expected until P1.5 or a future ghats task retires
+it properly. Only `m301` (alien)'s debrief foreshadows the Grid's scripted defeat —
+§4.4 asks for **two** prior foreshadows (ocean + alien) but `ocean` has no mission yet
+(`implemented:false`), so the second foreshadow is a TODO for whoever authors `ocean`'s
+mission once that site ships. `objectives`/`rewards`/`finale` shapes match
+`docs/track-b-content.md` §2.1 and ROADMAP-V2 §4.4 verbatim, including `m401`'s finale
+block (`trigger`/`script`/`playerAgency`/`defeatAfterMs`) copied as given. **No mission
+runtime exists** — `protect`/`destroy_targets`/`rescue`/`escort` objectives are
+authored as data only; they depend on the `Target`/`Entity` primitives from
+track-b §2.5, which is Unity/Phase-3 work (P3.7), not this repo today.
+`tools/validate-missions.mjs` is the new checker — run it after editing any mission or
+`data/campaign.data.js`'s node list.
 
 ### P0.6 note for whoever writes P0.7
 
@@ -433,3 +479,21 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   `gen-pages.mjs --check` and `data-to-json.mjs --check` both still pass (this task
   touched no `data/` files). `buildScenePicker()`/hub UI unchanged — still reads the v1
   fields directly, as intended; graph-driven hub UI is P4.1.
+- **2026-08-17** — P0.7: `data/objectives.schema.md` (11-type objective vocabulary
+  table, ROADMAP-V2 §4.3, hard cap). `data/missions/<id>.data.js` ×8 — `m101`(warzone),
+  `m102`(desert), `m201`(urban), `m202`(arctic), `m301`(alien), `m401`(grid, the
+  scripted-defeat mission with `outcome`+`finale` matching §4.4's example verbatim),
+  `m501`(space), `m601`(mars) — each with `node`/`scene`/`briefing`/`waveSet:
+  'classic_10'`/`objectives`/`rewards.unlockNode`/`debrief`. New
+  `tools/validate-missions.mjs` (zero-dep, same conventions as `gen-pages.mjs`) checks
+  every `objectives[].type` against the 11-type table and every `node`/
+  `rewards.unlockNode` against `data/campaign.data.js`'s node ids, plus that
+  `scripted_defeat` missions carry a `finale` block — all 8 pass. `data-to-json.mjs`
+  and its `--check` both pass (8 new `data/json/missions/*.json`, including `m601`'s
+  `rewards.unlockNode: null` round-tripping as valid JSON). `gen-pages.mjs --check`
+  unaffected (0, no scene/page files touched). `jungle` deliberately has no mission —
+  no campaign node exists for it yet. Only one of the two §4.4-requested prior
+  foreshadows landed (`m301`/alien) since `ocean` has no mission yet
+  (`implemented:false`) — flagged as a TODO in "Next session" for whoever authors
+  `ocean`. No runtime wiring — Unity implements missions later (P3.1/P3.7); this task
+  is data + validation only, consistent with the task's own scope.

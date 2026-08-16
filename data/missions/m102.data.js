@@ -1,0 +1,29 @@
+/* ═══════════════════════════════════════════════════════════════════
+   m102 — THAR RELAY. Node: desert. Parallel branch to warzone; both
+   feed into the urban/arctic act. See data/objectives.schema.md.
+   ═══════════════════════════════════════════════════════════════════ */
+export default {
+    id: 'm102',
+    node: 'desert',
+    scene: 'desert',
+    title: 'THAR RELAY',
+    briefing: {
+        speaker: 'CREON',
+        lines: [
+            'A comms relay in the Thar sands — the Horde is using it to coordinate the western front.',
+            'Take it down before it calls in reinforcements.',
+        ],
+        portrait: 'art/creon-machine-wars.png',
+    },
+    waveSet: 'classic_10',
+    objectives: [
+        { type: 'survive_waves', count: 10 },
+        { type: 'time_limit', seconds: 600, optional: true },
+    ],
+    rewards: { unlockNode: 'arctic' },
+    debrief: {
+        lines: [
+            'Relay silenced. The Horde is blind on this front — for now.',
+        ],
+    },
+};

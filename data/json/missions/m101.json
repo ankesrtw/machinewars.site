@@ -1,0 +1,35 @@
+{
+  "id": "m101",
+  "node": "warzone",
+  "scene": "warzone",
+  "title": "INDUSTRIAL WARZONE",
+  "briefing": {
+    "speaker": "CREON",
+    "lines": [
+      "The Horde holds this sector in force. This is your first real fight.",
+      "Clear the waves. Hold the line."
+    ],
+    "portrait": "art/creon-machine-wars.png"
+  },
+  "waveSet": "classic_10",
+  "objectives": [
+    {
+      "type": "survive_waves",
+      "count": 10
+    },
+    {
+      "type": "kill_type",
+      "enemy": "heavy",
+      "count": 3,
+      "optional": true
+    }
+  ],
+  "rewards": {
+    "unlockNode": "urban"
+  },
+  "debrief": {
+    "lines": [
+      "Sector secured. The Horde will regroup — so will we."
+    ]
+  }
+}

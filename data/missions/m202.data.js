@@ -1,0 +1,30 @@
+/* ═══════════════════════════════════════════════════════════════════
+   m202 — ARCTIC BASE. Node: arctic, requires desert. Feeds the ocean
+   AND-gate together with m201 (urban). See
+   data/objectives.schema.md for the objective vocabulary.
+   ═══════════════════════════════════════════════════════════════════ */
+export default {
+    id: 'm202',
+    node: 'arctic',
+    scene: 'arctic',
+    title: 'ARCTIC BASE',
+    briefing: {
+        speaker: 'CREON',
+        lines: [
+            'The Horde converted a research base into a staging ground. Cold will not slow them down. It will slow you.',
+            'Take the base.',
+        ],
+        portrait: 'art/creon-machine-wars.png',
+    },
+    waveSet: 'classic_10',
+    objectives: [
+        { type: 'survive_waves', count: 10 },
+        { type: 'weapon_restriction', weapon: 'RIFLE', optional: true },
+    ],
+    rewards: { unlockNode: 'ocean' },
+    debrief: {
+        lines: [
+            'Base taken. Two fronts closed — the Pacific platform is the last piece before the Ghost\'s territory.',
+        ],
+    },
+};
