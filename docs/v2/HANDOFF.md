@@ -27,29 +27,54 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**⚠️ Direction change, decided this session (2026-08-17), overrides the ROADMAP-V2
-Phase 1/2 GIS-first plan below:** after seeing `/play/ghats/` rendered, the user
-decided the **hand-authored arena style (v1 — `jungle.data.js`, `warzone.data.js`,
-etc.) is what carries forward into Unity**, not the GIS/DEM-terrain pipeline.
-Reasoning: the goal was always "does real GIS data make the game look more
-modern/realistic," not GIS-data fidelity for its own sake — and after two rounds
-of fixing real bugs in the heightmap-ground rendering (see log below), the
-hand-authored arenas still look and play better. **The GIS pipeline
-(`tools/gis/*.mjs`, `_buildHeightmapGround` in `src/scenes.js`,
-`data/scenes/ghats.data.js`) is being kept as a research/reference track, not
-built on top of.** Do not resume ROADMAP-V2 Phase 1's remaining tasks (P1.6,
-GATE P1) or Phase 2 (Unity terrain A/B spike) as the next thing to do — **read
-this note before touching `docs/v2/TASKS.md`'s Phase 1/2 rows**, they're stale
-relative to this decision. The next real planning session needs to decide what
-replaces Phase 2+ in the roadmap (Unity port of the hand-authored arena style,
-almost certainly) — that rewrite hasn't happened yet, this session only stopped
-and recorded the decision.
+**The re-plan is done (2026-08-17).** The direction change recorded last session
+has been written into `docs/v2/ROADMAP-V2.md` and `docs/v2/TASKS.md`. **Those two
+files are now current and authoritative** — the "stale Phase 1/2" warnings from
+last session are resolved. No code changed this session; this was the planning
+session the previous handoff called for.
 
-**P1.5 itself is still marked done** (2026-08-17) — `/play/ghats/` is live,
-playable, and was the first real render of P1.4's `ground.type: 'heightmap'`
-engine branch, which is what let this decision get made with real evidence
-instead of a guess. The work below is accurate; it's the *next step* that
-changed, not this task's completion.
+**What the re-plan decided** (all with the user, via explicit questions):
+
+1. **GIS is a closed research track.** Phase 1 ran, GATE P1 asked "does Ghats read
+   as a real place?", the answer was **no**, and the plan's own stated fallback
+   (hand-authored sites) was taken. ROADMAP-V2 gained a **§1.5 decision record**
+   and an **Appendix A** preserving the two durable findings (DEM is flat under
+   ~400m / real only past ~600m; the `mat.color` multiply bug). **P1.6 dropped** —
+   no GIS artifact ships, so no attribution obligation. `tools/gis/`,
+   `assets/terrain/ghats/`, `_buildHeightmapGround()` all **stay on disk**.
+2. **Phase 2 rebuilt.** The terrain A/B spike is void (no DEM to import). Phase 2
+   is now: Unity scaffold → **data importer (moved up from P3.1)** → build
+   `warzone` as a static Unity scene from `data/` → profile on device. The gate is
+   perf **plus** "a `data/` edit round-trips with zero hand-editing."
+3. **Roster: 11 sites → 9.** `ghats`/`ghats_east` **retired**; **`jungle` becomes
+   the campaign start node** (it was a finished arena orphaned from the graph by
+   the old ghats split — see the P0.7 note below). `ocean` and `grid` are the two
+   net-new hand-authored sites. `space` exists but with placeholder art.
+4. **Per-site mechanical variation is now a stated requirement** (new ROADMAP-V2
+   §3.1) — *"each scene should play differently, not just look different."* The
+   key finding: **the existing schema already carries this.** Three unused levers —
+   per-scene `waveSet` (P0.3 built it, nothing sets it), new enemy types
+   (`data/enemies.data.js` is open-ended), and `flies`/`flyHeight` (already on
+   `drone`). **Rule adopted:** variation must be expressible as `waveSet` + enemy
+   types + layout; anything needing a new *system* is a phase decision, not a
+   roster task.
+5. **`space` is the one genuine new system** (new §3.2): the player **pilots a ship,
+   6DOF**. Because it's a second movement model landing on the finale, it got
+   **its own Phase 5 with its own cut-or-keep gate**, placed *after* the MSP gate.
+   Phase 4 ships `space` as a **foot-soldier arena on a station hull** (the
+   documented fallback) so the campaign is complete and shippable without 6DOF.
+   `ocean` is an **ocean launch grid / rocket-launch station**, explicitly not an
+   oil rig, with a drone-heavy waveSet.
+6. **New Phase 1.9** (web repo, ~1 week, blocks the Unity importer): retire
+   ghats nodes + promote `jungle` to start node + author its mission; wire
+   per-scene `waveSet`; author `ocean` + `grid` scene data.
+
+**Phase renumbering:** old P5 (roster) → **P6**; old P6 (Android) → **P7**; old P7
+(assets) → **P8**. New **P5** is the 6DOF phase. P3.1 (importer) moved to **P2.2**;
+P3's numbering is otherwise unchanged deliberately, so old log entries still read.
+
+**Nothing was verified in a browser this session** — no code was touched. `git
+status` is clean apart from the pre-existing untracked video/tool files.
 
 **What P1.5 built:** `data/scenes/ghats.data.js` — new scene config, `ground.type:
 'heightmap'` pointing at `assets/terrain/ghats/{heightmap,albedo}.{png,json}`
@@ -369,28 +394,36 @@ not throwaway work.
 
 ## Next session — start here
 
-**Do not resume P1.6 or GATE P1.** Read the "⚠️ Direction change" note at the
-top of "Current state" first — the user decided, after seeing `/play/ghats/`
-rendered and two rounds of real bug fixes, that the **hand-authored arena style
-(v1) is what carries forward into Unity**, not the GIS/DEM pipeline. The GIS
-work (`tools/gis/`, `_buildHeightmapGround`, `ghats.data.js`) stays in the repo
-as a working reference/research track but is not the production direction.
+**The plan is current. Build, don't re-plan.** Read `docs/v2/TASKS.md` Phase 1.9,
+then start **P1.9.1**.
 
-**The actual next step is a planning session, not a build session:** ROADMAP-V2
-and `docs/v2/TASKS.md` Phase 1 (remaining: P1.6, GATE P1) and Phase 2 (Unity
-terrain A/B spike, which assumed the GIS heightmap was the terrain source) are
-now stale against this decision and need a rewrite before more implementation
-work happens. That rewrite is scoped work for whoever picks this up — it needs
-a real conversation about what Phase 2+ becomes (most likely: Unity port
-starting directly from the hand-authored `data/scenes/*.data.js` arenas,
-skipping the GIS-terrain detour entirely), not a unilateral edit. Start there:
-read ROADMAP-V2 §5–§6 with this decision in mind, and figure out with the user
-what the phase list should say now, before ticking any more boxes in
-`TASKS.md`.
+**P1.9.1 — retire ghats, promote `jungle` to start node** (·S, web repo):
+- `data/campaign.data.js`: delete the `ghats` and `ghats_east` nodes; add a
+  `jungle` node — `implemented: true`, `unlocks: ['warzone', 'desert']`,
+  `startNode: 'jungle'`. Check `requires` on `warzone`/`desert` still resolve
+  (they currently point at `ghats_east`).
+- `src/scenes-data.js`: drop `ghats` from `MISSION_ORDER`, lead with `jungle`.
+  **Keep the `ghats` import and its scene config** — the scene stays playable at
+  `/play/ghats/`, it just leaves the campaign (Appendix A).
+- Author `data/missions/m001.data.js` for `jungle` — it has never had a mission
+  (see the P0.7 note below; that orphan is exactly why `jungle` is now the opener).
+- **Sector-count copy is hardcoded in all HTML pages** (`8 SECTORS`, currently
+  bumped to 9 by P1.5) — recount and update by hand, per AGENTS.md.
+- Verify: `node tools/validate-missions.mjs`, `node tools/data-to-json.mjs
+  --check`, `node tools/gen-pages.mjs --check`, and open the hub to confirm
+  `jungle` leads.
 
-**Untouched by this decision:** `data/`'s content-authoring contract (P0),
-`save.js` v2, the campaign graph, and the mission schema — none of that assumed
-GIS terrain, all of it still applies to the hand-authored arena path forward.
+Then **P1.9.2** (wire per-scene `waveSet` — the one-line change P0.3 left ready,
+see its note below) and **P1.9.3** (author `ocean` + `grid`). The user offered to
+**generate AI concept art for `ocean` and `space`** — worth taking up before the
+`ocean` layout pass, via `tools/gen-art.mjs`.
+
+**Do not start Unity (Phase 2) until P1.9 lands** — P2.2 is the data importer, and
+importing a stale campaign graph would mean redoing it.
+
+**Untouched by the re-plan:** `data/`'s content-authoring contract (P0),
+`save.js` v2, the campaign graph *mechanism* (only its node list changes), and the
+mission schema — none of that assumed GIS terrain.
 
 ### P0.8 note for whoever starts P1.5 or any future doc-facing session
 
@@ -702,3 +735,28 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   unconfirmed pixel-for-pixel, and `docs/v2/TASKS.md`/ROADMAP-V2's Phase 1
   (P1.6, GATE P1) and Phase 2 rows flagged stale pending a re-plan — see the
   "⚠️ Direction change" note in "Current state" and "Next session" above.
+- **2026-08-17 (planning session)** — **Re-planned Phase 2+ around hand-authored
+  arenas.** No code touched; this was the planning session the previous handoff
+  called for. `docs/v2/ROADMAP-V2.md`: new **§1.5** decision record (GIS is not
+  the terrain source — GATE P1 answered "no", fallback taken as written), new
+  **Appendix A** preserving the GIS track's two durable findings (DEM flat under
+  ~400m; the `mat.color` multiply bug) and an inventory of what stays on disk;
+  **§3 roster** rewritten 11 sites → 9 (`ghats`/`ghats_east` retired, `jungle`
+  promoted to start node, `ocean`+`grid` net-new, `space` reworked); new **§3.1**
+  making per-site mechanical variation a stated requirement with the rule that it
+  must be expressible as `waveSet` + enemy types + layout; new **§3.2** scoping
+  `space` as 6DOF ship combat with an explicit foot-soldier fallback; **§8 phase
+  table** rebuilt (Phase 2 = scaffold + importer + perf gate, importer moved up
+  from P3.1; new cuttable Phase 5 for 6DOF placed *after* the MSP gate so the
+  ending ships either way; old P5→P6, P6→P7, P7→P8); **§9 risks** updated — risk 4
+  (GIS hypothesis) marked RESOLVED-and-false as evidence the gate structure works,
+  two new risks added (6DOF on the finale; "plays differently" quietly becoming
+  "needs new systems"). `docs/v2/TASKS.md`: Phase 1 marked closed with P1.6
+  **dropped** (no GIS artifact ships → no attribution obligation), new **Phase
+  1.9** added (retire ghats + promote jungle + author its mission; wire per-scene
+  `waveSet`; author `ocean`+`grid`) as the immediate next work and a blocker on
+  the Unity importer, Phases 2–8 rewritten/renumbered, progress table updated.
+  Estimate: retiring GIS + two sites took ~8–12 weeks out of the plan. Decisions
+  were made interactively with the user, not unilaterally — the roster, the
+  `space` movement model, and the ocean-base framing (launch grid, not oil rig)
+  are all as specified by them.

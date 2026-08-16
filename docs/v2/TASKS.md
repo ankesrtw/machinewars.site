@@ -140,19 +140,23 @@ graph AND-gate resolves correctly.
 
 ---
 
-# Phase 1 — GIS pipeline + first site (web preview)
+# Phase 1 — GIS pipeline ⛔ CLOSED (research track)
 
-> **⚠️ STALE (2026-08-17) — read `docs/v2/HANDOFF.md` "Current state" before
-> resuming anything below.** After P1.5 shipped and was fixed twice, the user
-> decided the hand-authored (v1) arena style carries forward into Unity, not
-> this GIS/DEM pipeline. P1.6 and GATE P1 are **not the next task** — the
-> pipeline stays in the repo as a research track, and Phase 2's Unity terrain
-> A/B spike (which assumed this pipeline as the terrain source) needs a
-> re-plan before it's picked up. Do not tick P1.6 or GATE P1 without first
-> reading the handoff note and confirming the direction hasn't changed again.
+> **GATE P1 ran and answered "no" (2026-08-17).** Real DEM did not make the site read
+> as a more real place than the hand-authored arenas. **The plan's own stated fallback
+> was taken: hand-authored sites.** The pipeline stays in the repo as working
+> reference — see [ROADMAP-V2 §1.5](ROADMAP-V2.md#15-direction-change--gis-is-not-the-terrain-source-2026-08-17)
+> and [Appendix A](ROADMAP-V2.md#appendix-a--gis-research-track-closed).
+>
+> **Nothing in this phase is open work.** P1.6 (attribution) is **dropped** — no
+> GIS-derived artifact ships, so no attribution obligation exists. If that ever
+> changes, write it before shipping.
+>
+> **Do not resume, extend, or delete this track.** The two findings worth carrying
+> forward (DEM is flat under ~400m; the `mat.color` multiply bug) are in Appendix A.
 
-**Goal:** answer *"does real terrain read as a real place?"* cheaply. Est. 4–6 weeks.
-Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline)
+**Outcome:** the gate worked as designed — one site, ~two weeks, killed on evidence.
+Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline) *(historical)*
 
 - [x] **P1.1 — `tools/gis/sites.data.js` + cache scaffolding** · **S** *(2026-08-16)*
   The roster as data: slug → `{ bbox, centerLatLon, playableExtentM, source, notes }` for
@@ -204,25 +208,60 @@ Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline)
   page via `gen-pages.mjs`.
   **Done when:** `/play/ghats/` loads and is playable end-to-end in the browser.
 
-- [ ] **P1.6 — `docs/v2/gis-attribution.md`** · **S**
-  Credit lines for every source actually used (Copernicus, Sentinel, GEBCO). Confirm no
-  OSM-derived database ships — **reference-only** tracing.
-  **Done when:** every used source has its required attribution string recorded.
-
-### 🚧 GATE P1 — *blocking, and genuinely might fail*
-**Does Ghats read as a real, specific place in the browser?** Also: the generated scene
-loads with **only** the `heightmap` branch added, and a cold load makes **zero network
-requests** (check the devtools network tab).
-**Be prepared for "no."** If real DEM at this scale is indistinguishable from good
-procedural noise, the GIS spine is not worth its cost — fall back to hand-authored sites
-using GIS for lighting/palette reference only, and **the roster and pipeline tasks below
-shrink accordingly.** Find this out here, with one site, not after three months of pipeline.
+- [x] **P1.5 — `data/scenes/ghats.data.js`** — *(2026-08-17, see log)*
+- [~] **P1.6 — `docs/v2/gis-attribution.md`** — **DROPPED.** No GIS-derived artifact
+  ships. Write it only if that changes.
+- [x] **GATE P1 — ran, answered "no", fallback taken.** *(2026-08-17)*
 
 ---
 
-# Phase 2 — Unity + terrain A/B spike
-**Goal:** prove the runtime holds framerate on a real mid-range phone. Est. 6–8 weeks.
-Plan ref: [§6.1–6.2](ROADMAP-V2.md#6-unity-project)
+# Phase 1.9 — Roster + campaign graph rework (web repo)
+**Goal:** make `data/` describe the revised 9-site roster before Unity imports it.
+**Small, and it must land before P2.2 (the importer) so Unity never imports a stale
+graph.** Est. 1 week.
+Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§3.1](ROADMAP-V2.md#31-per-site-mechanical-variation--the-rosters-real-requirement)
+
+- [ ] **P1.9.1 — Retire `ghats`/`ghats_east`, promote `jungle` to start node** · **S**
+  Remove both nodes from `data/campaign.data.js`; add a `jungle` node with
+  `startNode: 'jungle'`, `implemented: true`, and `unlocks: ['warzone', 'desert']`.
+  Drop `ghats` from `MISSION_ORDER` in `src/scenes-data.js` and lead with `jungle`.
+  **Keep `data/scenes/ghats.data.js` and `play/ghats/` on disk** — the scene simply
+  leaves the campaign (Appendix A). Author `data/missions/m001.data.js` for `jungle`
+  (it currently has no mission — see the P0.7 note below).
+  **Done when:** `node tools/validate-missions.mjs` passes, `data-to-json.mjs --check`
+  and `gen-pages.mjs --check` exit 0, and the hub shows `jungle` as the first site.
+
+- [ ] **P1.9.2 — Wire `waveSet` per scene** · **S**
+  The one-line wiring P0.3 left ready: `WaveManager.waveSet = sceneConfig.waveSet ||
+  'classic_10'` before `startWave()`. Add an optional `waveSet` field to the scene
+  schema; leave every existing scene on `classic_10` for now.
+  **This is the highest-leverage unused feature in the codebase** — after it, per-site
+  enemy mix and pacing (§3.1) are pure data.
+  **Done when:** a scene with `waveSet: '<other>'` demonstrably plays a different wave
+  composition in the browser, and every unmodified scene plays identically to today.
+
+- [ ] **P1.9.3 — Author `ocean` + `grid` scene data** · **M**
+  Two net-new hand-authored arenas, same style as `warzone`/`jungle`.
+  `ocean` — **OCEAN LAUNCH GRID**: a rocket-launch/sea-platform structure over water
+  (explicitly *not* an oil rig), constrained arena, fall-off-edge danger, and a
+  **drone/flier-heavy `waveSet`** since there is no ground approach (leans on the
+  existing `flies`/`flyHeight` fields). `grid` — **CREON DATA GRID**: non-geographic,
+  the scripted-defeat site. Flip both nodes to `implemented: true`; generate pages via
+  `gen-pages.mjs`; author their missions.
+  *Optional: generate concept art for both via `tools/gen-art.mjs` first — the user
+  offered, and a visual target makes the layout pass much faster.*
+  **Done when:** `/play/ocean/` and `/play/grid/` load and are playable end-to-end.
+
+---
+
+# Phase 2 — Unity foundation + perf gate
+**Goal:** prove `data/` imports cleanly **and** the runtime holds framerate on a real
+mid-range phone. Est. 6–8 weeks.
+Plan ref: [§6.1](ROADMAP-V2.md#61-setup), [§1.5](ROADMAP-V2.md#15-direction-change--gis-is-not-the-terrain-source-2026-08-17)
+
+> **The terrain A/B spike that used to be this phase is void** — there is no DEM
+> heightmap to import (§1.5). The importer takes its place as the first real Unity task,
+> which also makes the perf gate cheap to reach.
 
 - [ ] **P2.1 — Unity 6 LTS + URP project scaffold** · **M**
   **Separate `machinewars-unity` repo** — do *not* put it inside this repo. URP 3D
@@ -230,32 +269,41 @@ Plan ref: [§6.1–6.2](ROADMAP-V2.md#6-unity-project)
   fallback; linear colour; ASTC Android / BC7+BC5 Windows.
   **Done when:** an empty scene builds and runs on the target Android device.
 
-- [ ] **P2.2 — Acquire + baseline the test device** · **S**
+- [ ] **P2.2 — Data importer** · **M** *(was P3.1 — moved up, now the keystone of P2)*
+  `[MenuItem]` editor importer (~200 LOC) reading `data/json/*.json` →
+  `SceneConfigSO`, `EnemyTypeSO`, `WaveSetSO`, `WeaponSO`, `MissionSO`, `CampaignSO`,
+  11 `ObjectiveSO` subclasses. **Do this before any content work** — it makes all later
+  content free, and it is what the whole Phase 0 data effort was for.
+  **Done when:** a `data/` edit round-trips into Unity with **zero hand-editing.**
+
+- [ ] **P2.3 — Acquire + baseline the test device** · **S**
   A real ~3-year-old ~$250 phone (Snapdragon 6-series / Dimensity 900 class). **Not the
   editor, not a flagship.** Record a baseline profile capture.
   **Done when:** device profiles over USB and a baseline number is written down.
 
-- [ ] **P2.3 — Path A: baked DEM mesh** · **M**
-  `tools/gis/bake-mesh.mjs` → decimated `.glb` → Unity prefab via **glTFast at edit
-  time** (never runtime glTF on mobile).
-  **Done when:** Ghats terrain renders in Unity from the baked mesh.
+- [ ] **P2.4 — Build `warzone` as a static Unity scene from `data/`** · **M**
+  Drive scene construction from the imported `SceneConfigSO`: ground, `coverBlocks` as
+  box colliders + meshes, GLB props via **glTFast at edit time** (never runtime glTF on
+  mobile), sky/lighting from the config's palette. No gameplay yet.
+  **`warzone` is the reference site** — it already has the richest prop set.
+  **Done when:** `warzone` renders in Unity, recognizably matching `/play/warzone/`,
+  built entirely from `data/` with no hand-placed geometry.
 
-- [ ] **P2.4 — Path B: Unity Terrain** · **M**
-  Heightmap PNG → `TerrainData.SetHeights` via an editor script; terrain layers from the
-  albedo. *(Independent of P2.3 — either order.)*
-  **Done when:** the same Ghats terrain renders via Unity Terrain.
-
-- [ ] **P2.5 — Profile both, decide, record** · **M**
-  Same device, same scene, 12+ enemy stand-ins. Capture frame time, draw calls, tri
-  count, **and thermal behaviour over 10 minutes** — throttle is what actually kills
-  mobile. Write `docs/v2/terrain-decision.md` with the numbers.
-  **Done when:** the decision is recorded with data. **Do not re-litigate it later.**
+- [ ] **P2.5 — Profile on device, record the numbers** · **M**
+  `warzone` + 12+ enemy stand-ins (capsules are fine — this measures rendering and
+  scene cost, not AI). Capture frame time, draw calls, tri count, **and thermal
+  behaviour over 10 minutes** — throttle is what actually kills mobile. Write
+  `docs/v2/perf-baseline.md`.
+  **Done when:** the numbers are recorded. **This is the baseline every later phase
+  measures against.**
 
 ### 🚧 GATE P2 — *blocking*
-**≥30fps sustained, 12+ enemies visible, 10-minute thermal soak**, on the mid-range
-device, on the winning path.
-**If neither path clears it, reduce scope now** — smaller playable extent, lower-res
-heightmap, fewer simultaneous enemies, cheaper URP tier. **Not "optimize later."**
+**≥30fps sustained, 12+ enemies visible, 10-minute thermal soak** on the mid-range
+device — **and** a `data/` edit round-trips into Unity with zero hand-editing.
+**If perf fails, reduce scope now** — fewer simultaneous enemies, smaller arenas,
+cheaper URP tier, lower-poly props. **Not "optimize later."**
+**If the importer needs hand-editing to work, fix the schema, not the Unity side** —
+that is the whole contract.
 
 ---
 
@@ -263,11 +311,10 @@ heightmap, fewer simultaneous enemies, cheaper URP tier. **Not "optimize later."
 **Goal:** one site, one full mission, fun on a phone. Est. 12–16 weeks.
 Plan ref: [§6.3](ROADMAP-V2.md#63-port-order-adapted-from-track-c) steps 2–8
 
-- [ ] **P3.1 — Data importer** · **M** — `[MenuItem]` editor importer (~200 LOC) →
-  `SceneConfigSO`, `EnemyTypeSO`, `WaveSetSO`, `WeaponSO`, `MissionSO`, `CampaignSO`, 11
-  `ObjectiveSO` subclasses. **Do this before any content work** — it makes all later
-  content free.
-  **Done when:** a `data/` edit round-trips into Unity with zero hand-editing.
+> **P3.1 (data importer) moved to P2.2** — with the terrain spike void, the importer
+> became Phase 2's keystone. Numbering below is unchanged to keep the handoff log
+> readable.
+
 - [ ] **P3.2 — Player controller + Input System** · **M** — touch first, then gamepad,
   then KBM. Weapons from `WeaponSO`, hitscan raycast, no enemies yet.
 - [ ] **P3.3 — Enemies + NavMesh** · **L** — **do not port `enemies.js` pathfinding**
@@ -290,10 +337,11 @@ Plan ref: [§6.3](ROADMAP-V2.md#63-port-order-adapted-from-track-c) steps 2–8
   else works without it.**
 
 ### 🚧 GATE P3
-**Is it fun on a phone — judged by someone who is not you?** Plus: a `data/` edit
-round-trips with zero hand-editing; enemies attack a mission `Entity` when priority is
-`objective`; touch/gamepad/KBM all complete the same mission.
-If touch controls make a cover shooter miserable, **solve it here**, not after 11 sites exist.
+**Is it fun on a phone — judged by someone who is not you?** Plus: enemies attack a
+mission `Entity` when priority is `objective`; touch/gamepad/KBM all complete the same
+mission.
+If touch controls make a cover shooter miserable, **solve it here**, not after the
+roster exists.
 
 ---
 
@@ -309,20 +357,26 @@ Plan ref: [§6.4](ROADMAP-V2.md#64-hub-map-new--track-c-had-none), [§4.4](ROADM
 - [ ] **P4.2 — Save/settings/menus** · **M** — the `save.js` v2 schema via
   `JsonUtility`/Newtonsoft to `Application.persistentDataPath`. **Ship `UNLOCK_ALL_NODES`
   OFF via a build flag, not a source constant.**
-- [ ] **P4.3 — Site: `warzone`** · **M** — proves the world-builder path on a site that
-  already has props.
+- [ ] **P4.3 — Site: `jungle` (opening)** · **M** — the campaign's first site; proves
+  the world-builder path on finished scene data.
 - [ ] **P4.4 — Site: `arctic`** · **M** — completes the first real branch choice.
+  *(`warzone` already exists from P2.4 — it was the perf-gate scene.)*
 - [ ] **P4.5 — Site: `grid` + the scripted defeat** · **L** — **the highest-risk task in
   the plan.** Player *wins* the fight (objectives complete normally); agency retained for
   the 45s collapse; **no fail screen, no retry prompt**; straight to the `space` debrief;
   `nodesCompleted` includes `grid`. Foreshadow in the two prior debriefs. **Then the hub
   map goes orbital** — that beat is what makes the loss land structurally.
-- [ ] **P4.6 — Site: `space` (finale)** · **M**
+- [ ] **P4.6 — Site: `space` (finale) — foot-soldier version** · **M**
+  **Deliberately the §3.2 fallback, not 6DOF.** Player fights on a station hull /
+  capital-ship exterior: same controller as every other site, low-gravity tuning, with
+  the human-vs-CREON fleet battle as skybox spectacle and large moving cover.
+  **This is what makes the campaign shippable at the end of Phase 4** — 6DOF is Phase 5
+  and may be cut. Ship the ending first, upgrade it second.
 - [ ] **P4.7 — VFX + object pooling** · **M** — `fx.js` procedural textures → VFX
   Graph/Shuriken; Unity 6 `ObjectPool<T>`.
 
 ### 🚧 GATE P4 — *the ship-it-if-you-must-stop gate*
-Full playthrough: Ghats → branch choice → Grid defeat → space. Close app, reopen,
+Full playthrough: jungle → branch choice → Grid defeat → space. Close app, reopen,
 progress persists. The Grid's objectives complete **successfully** before the defeat; no
 fail screen. **Someone who is not you reports whether the defeat felt earned or cheap.**
 If cheap → fallback is a **pyrrhic win** (objectives met, Grid escapes to orbit), which
@@ -330,54 +384,85 @@ preserves the space act at lower narrative risk.
 
 ---
 
-# Phase 5 — Roster fill
-**Data + GIS bake + prop kit per site. No new systems. Truncates at any site boundary.**
-Est. 2–4 weeks each. Do in this order (cheapest/highest-value first):
+# Phase 5 — `space` 6DOF ship combat *(upgrade, cuttable)*
+**Goal:** the finale becomes ship-to-ship piloting instead of a foot-soldier arena.
+Est. 6–10 weeks. Plan ref: [§3.2](ROADMAP-V2.md#32-space--the-one-genuine-new-system)
 
-- [ ] **P5.1 — `ghats_east`** · **M** *(shares the Ghats biome pipeline — cheapest)*
-- [ ] **P5.2 — `urban`** · **M**
-- [ ] **P5.3 — `desert`** · **M**
-- [ ] **P5.4 — `alien`** · **M**
-- [ ] **P5.5 — `ocean`** · **L** — **hardest GIS site** (bathymetry, water, platform
-  geometry, no terrain to fight on). **First candidate for reclassification** to
-  hand-authored with GIS supplying only sea state and horizon. Decide before starting.
-- [ ] **P5.6 — World builder from scene data** · **M** — automate placement so remaining
-  sites are data edits. *(Pull earlier if P5.1–P5.2 feel repetitive — that is the signal.)*
+> **This phase is optional by construction.** Phase 4 already shipped `space` as a
+> playable finale. **If this gate fails, keep the Phase 4 version and cut the phase** —
+> the campaign is unaffected. Do not move this phase earlier; that would put the
+> ending behind the riskiest remaining work.
+
+- [ ] **P5.1 — 6DOF flight controller prototype** · **L** — the real question is
+  **touch controls**, not the flight math. Prototype touch first, on device, before
+  building anything around it. Gamepad and KBM after.
+  **Done when:** flying feels good on a phone, judged on the actual test device.
+- [ ] **P5.2 — Ship combat + enemy vessels** · **L** — CREON machine vessels and human
+  allied ships. Reuse `EnemyTypeSO` where the shape fits; expect new fields for
+  vessel-scale movement. **No NavMesh** — this is off-mesh steering in 3D.
+- [ ] **P5.3 — Rebuild `space` as a ship arena** · **M** — capital ships and debris as
+  the "cover"; the fleet battle becomes the arena rather than the backdrop.
+
+### 🚧 GATE P5 — *cut-or-keep, not blocking*
+**Is piloting fun on touch, and does it beat the Phase 4 foot-soldier `space`?**
+Both must be yes. **If either is no, revert to the Phase 4 version and move on** —
+that is a legitimate outcome, not a failure. Record the decision either way.
 
 ---
 
-# Phase 6 — Android release
+# Phase 6 — Roster fill
+**Layout + `waveSet` + enemy types per site ([§3.1](ROADMAP-V2.md#31-per-site-mechanical-variation--the-rosters-real-requirement)).
+No new systems. Truncates at any site boundary.** Est. 2–4 weeks each.
+
+> **The §3.1 rule is what keeps this phase safe:** a site's variation must be
+> expressible as `waveSet` + enemy types + layout. **A site that needs a new system is
+> out of scope by definition** — escalate it to a phase decision instead.
+
+- [ ] **P6.1 — `ocean`** · **L** — OCEAN LAUNCH GRID. Platform/launch-station arena over
+  water; no ground approach, so a **drone/flier-heavy `waveSet`** carries the variation
+  (uses existing `flies`/`flyHeight`). Fall-off-edge danger. **Highest-effort roster row.**
+- [ ] **P6.2 — `desert`** · **M** — long sightlines; ranged/sniper-heavy `waveSet`.
+- [ ] **P6.3 — `urban`** · **M** — verticality and ambush; tight lanes, swarm-heavy.
+- [ ] **P6.4 — `alien`** · **M** — unfamiliar movement feel; spider/artillery types.
+- [ ] **P6.5 — World builder from scene data** · **M** — automate placement so remaining
+  sites are data edits. *(Pull earlier if P6.1–P6.2 feel repetitive — that is the signal.)*
+
+---
+
+# Phase 7 — Android release
 Est. 4–6 weeks. Plan ref: [§8](ROADMAP-V2.md#8-phasing-with-gates)
 
-- [ ] **P6.1 — Play Console account** ($25) · **S**
-- [ ] **P6.2 — Upload keystore + BACK IT UP IN TWO PLACES** · **S** — losing it is
+- [ ] **P7.1 — Play Console account** ($25) · **S**
+- [ ] **P7.2 — Upload keystore + BACK IT UP IN TWO PLACES** · **S** — losing it is
   near-unrecoverable.
-- [ ] **P6.3 — Size budget + ASTC pass** · **M** — likely 60–120MB. **Play Asset Delivery
+- [ ] **P7.3 — Size budget + ASTC pass** · **M** — likely 60–120MB. **Play Asset Delivery
   only if >200MB** — don't pre-build packs.
-- [ ] **P6.4 — Store listing + closed testing** · **M**
-- [ ] **P6.5 — Signed AAB shipped** · **M**
+- [ ] **P7.4 — Store listing + closed testing** · **M**
+- [ ] **P7.5 — Signed AAB shipped** · **M**
 
 ---
 
-# Phase 7 — Robot / asset scale-up *(continuous — interleave from Phase 3 on)*
+# Phase 8 — Robot / asset scale-up *(continuous — interleave from Phase 3 on)*
 Plan ref: [§7](ROADMAP-V2.md#7-robot--asset-scale-up). Not a blocking phase; pull tasks
 in whenever a site needs them.
 
-- [ ] **P7.1 — `drone` + `boss` GLBs** · **M** — fills the two gaps; the boss is an act
+- [ ] **P8.1 — `drone` + `boss` GLBs** · **M** — fills the two gaps; the boss is an act
   finale currently rendering as a scaled-up procedural grunt. **Do this early** — helps
   the web preview immediately and is required for Unity regardless.
-- [ ] **P7.2 — `tools/bake-normals.py`** · **M** — bake Tripo high-poly normals onto the
+- [ ] **P8.2 — `tools/bake-normals.py`** · **M** — bake Tripo high-poly normals onto the
   retopo'd low-poly. **The single highest-value quality lever** — what makes a 5k-tri
   mobile robot read as a 200k-tri asset.
-- [ ] **P7.3 — LOD chains** · **M** — LOD0 ~15–25k / LOD1 ~5–8k / LOD2 ~2k per robot,
+- [ ] **P8.3 — LOD chains** · **M** — LOD0 ~15–25k / LOD1 ~5–8k / LOD2 ~2k per robot,
   generated in one Blender session.
-- [ ] **P7.4 — New enemy types** · **M** — `sniper`, `swarm`, `shield`, `spider`,
+- [ ] **P8.4 — New enemy types** · **M** — `sniper`, `swarm`, `shield`, `spider`,
   `artillery` from `data/enemies.data.js` + **at most 3 new flags** (`preferredRange`,
   `damageMultiplierByAngle`, `spawnsOnDeath`).
-- [ ] **P7.5 — Act-boss uniques** · **L** — 2–3, with the `phases:[{hpThreshold, speed,
+  **This is what powers §3.1's per-site variation** — pull it forward as soon as
+  Phase 6 needs a site to play differently, not at the end.
+- [ ] **P8.5 — Act-boss uniques** · **L** — 2–3, with the `phases:[{hpThreshold, speed,
   fireInterval, spawns}]` array.
-- [ ] **P7.6 — Biome prop kits** · **L** — ~8–12 props each, but **biomes share**
-  (Ghats ↔ jungle, arctic ↔ space). ~5 kits covers 11 sites.
+- [ ] **P8.6 — Biome prop kits** · **L** — ~8–12 props each, but **biomes share**
+  (jungle ↔ ocean vegetation, arctic ↔ space hard-surface). ~4 kits covers 9 sites.
 
 **Asset rules — every task in this phase:**
 GLBs stay **Y-up, no corrective rotation** · authored origin-centred (`groundPivot()`,
@@ -394,14 +479,21 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 8 | ⬜ |
-| P1 — GIS + first site | 6 | 5 | ⬜ |
-| P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
-| P3 — Vertical slice | 7 | 0 | ⬜ |
-| P4 — Campaign spine | 7 | 0 | ⬜ **← MSP** |
-| P5 — Roster fill | 6 | 0 | — |
-| P6 — Android release | 5 | 0 | — |
-| P7 — Assets *(continuous)* | 6 | 0 | — |
+| P0 — Data foundation | 8 | 8 | ✅ **passed 2026-08-17** |
+| P1 — GIS *(closed research)* | 6 | 5 + 1 dropped | ⛔ **answered "no" — fallback taken** |
+| P1.9 — Roster + graph rework | 3 | 0 | — *(no gate; blocks P2.2)* |
+| P2 — Unity foundation + perf | 5 | 0 | ⬜ |
+| P3 — Vertical slice | 6 | 0 | ⬜ |
+| P4 — Campaign spine | 7 | 0 | ⬜ **← MSP, ships without 6DOF** |
+| P5 — `space` 6DOF *(cuttable)* | 3 | 0 | ⬜ *cut-or-keep* |
+| P6 — Roster fill | 5 | 0 | — |
+| P7 — Android release | 5 | 0 | — |
+| P8 — Assets *(continuous)* | 6 | 0 | — |
 
-**50 tasks.** Phases 0–4 (33 tasks) ≈ 40–55 weeks at ~12h/week and produce a complete,
-shippable campaign. Everything after is additive.
+**Phases 1.9–4 ≈ 30–40 weeks** at ~12h/week and produce a complete, shippable campaign
+(jungle → branch → Grid defeat → space). Phase 5 upgrades the finale and may be cut;
+Phases 6–8 are additive.
+
+**Revised 2026-08-17** — see [ROADMAP-V2 §1.5](ROADMAP-V2.md#15-direction-change--gis-is-not-the-terrain-source-2026-08-17).
+Retiring the GIS pipeline and the `ghats`/`ghats_east` sites removed roughly 8–12 weeks
+of projected work.

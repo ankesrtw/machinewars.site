@@ -1,11 +1,52 @@
-# Machine Wars v2 — GIS Campaign, Unity Runtime
+# Machine Wars v2 — Hand-Authored Campaign, Unity Runtime
 
-> **Status:** direction agreed, not yet started. This document **supersedes the
-> sequencing** in [../ROADMAP.md](../ROADMAP.md), which stays for history. The
-> supporting doc amendments are listed in §11.
+> **Status:** Phase 0 complete and gated. **Phase 1 (GIS) ran, answered its gate
+> question "no", and is now a closed research track** — see §1.5. Phases 2+ were
+> re-planned on 2026-08-17 around hand-authored arenas; that revision is what the
+> phase table in §8 and [TASKS.md](TASKS.md) now describe.
 >
-> **To execute:** work from [TASKS.md](TASKS.md) — 50 session-sized tasks with gates.
+> This document **supersedes the sequencing** in [../ROADMAP.md](../ROADMAP.md), which
+> stays for history. The supporting doc amendments are listed in §11.
+>
+> **To execute:** work from [TASKS.md](TASKS.md) — session-sized tasks with gates.
 > Read that file plus the plan section it links, not this whole document.
+
+---
+
+## 1.5 Direction change — GIS is not the terrain source (2026-08-17)
+
+**Decided after `/play/ghats/` rendered, with real evidence rather than a guess.**
+Phase 1 built the full GIS pipeline (`tools/gis/*.mjs`, `assets/terrain/ghats/`, the
+`ground.type: 'heightmap'` engine branch) and shipped a playable site. Two rounds of
+real bug fixes later — including a genuine engine bug where `_buildHeightmapGround`
+crushed the loaded albedo to near-black — **the hand-authored arenas still look and
+play better.**
+
+GATE P1 asked: *"does Ghats read as a real, specific place in the browser?"* The plan
+said to be prepared for "no." **The answer was no.** The gate worked exactly as
+designed: one site, ~two weeks, decision made before three months of pipeline.
+
+**What this changes:**
+
+- **The hand-authored arena style (`data/scenes/*.data.js` — `warzone`, `jungle`,
+  `arctic`, …) is what carries into Unity.** Sites are `coverBlocks` + GLB props +
+  a lighting/sky palette, all already expressed in the existing schema.
+- **Phase 2's terrain A/B spike is void.** It asked "which way do we import a DEM
+  heightmap into Unity" — there is no DEM heightmap to import. Phase 2 is now
+  scaffold + data importer + a real perf gate on an imported hand-authored arena.
+- **The data importer (was P3.1) moves up to Phase 2.** With the terrain question
+  gone, the importer is the first real Unity task, and it makes the perf gate cheap
+  to reach: import `warzone`, add enemy stand-ins, profile.
+
+**What this does NOT change** — none of it assumed GIS terrain:
+`data/`'s authoring contract, `save.js` v2 + migration, the campaign graph, the
+mission/objective schema, the Unity port order for everything downstream of terrain
+(player, enemies, waves, audio, HUD, missions, hub map, the `grid` defeat).
+
+**The GIS track is kept, not deleted.** `tools/gis/`, `assets/terrain/ghats/`, and
+`_buildHeightmapGround()` stay in the repo as working reference. Its two durable
+findings are recorded in [Appendix A](#appendix-a--gis-research-track-closed). Do not
+build on it; do not delete it.
 
 ---
 
@@ -66,32 +107,78 @@ becoming incoherent. Honest total in §8.
 
 ## 3. Site roster
 
-**Earth GIS core → off-world finale.** 11 sites. GIS sites use real DEM + satellite for
-terrain silhouette and biome palette; layout is hand-authored.
+> **Revised 2026-08-17** (§1.5). Every site is **hand-authored** — the GIS column is
+> gone. `ghats`/`ghats_east` are **retired**; `jungle` (a finished arena that the
+> ghats split had orphaned from the campaign graph) takes the opening slot.
 
-| # | ID | Name | Region | Build | Reuses | Narrative role |
-|---|---|---|---|---|---|---|
-| 1 | `ghats` | WESTERN GHATS | Agumbe/Kudremukh ~13.5N 75.1E | GIS | jungle assets | **Opening.** GHOST AI's hidden base. |
-| 2 | `ghats_east` | EASTERN GHATS | Araku Valley ~18.3N 82.9E | GIS | jungle | War spreads; shares biome pipeline. |
-| 3 | `warzone` | INDUSTRIAL WARZONE | Jamshedpur belt ~22.8N 86.2E | GIS + existing props | **warzone** | Human industrial base falling. |
-| 4 | `urban` | URBAN COLLAPSE | Chennai/Mumbai coastal ~13.0N 80.2E | GIS | **urban** | Ghost reaches population centres. |
-| 5 | `desert` | THAR RELAY | Thar Desert ~27.0N 71.5E | GIS | **desert** | Relay array. Long sightlines. |
-| 6 | `arctic` | ARCTIC BASE | Svalbard ~78.2N 15.6E | GIS | **arctic** | Human command bunker. |
-| 7 | `ocean` | PACIFIC PLATFORM | Pacific rig ~15.0N 145.0E | GIS (bathymetry) | **new** | Ocean base. See risk 7. |
-| 8 | `alien` | XENO SITE | Atacama ~24.5S 69.3W, or hand | Hybrid | **alien** | Ghost's non-human tech origin. |
-| 9 | `grid` | CREON DATA GRID | non-geographic | **Hand-authored** | **new** | **Scripted defeat.** Last Earth site. |
-| 10 | `space` | ORBITAL WAR | non-geographic | Hand-authored | **space** | Grid vs humans. Post-defeat act. |
-| 11 | `mars` | MARS | — | Hand-authored | **mars** | **LOCKED.** Visible future content. |
+**9 sites.** Six already exist as finished `data/scenes/*.data.js`; two are net new;
+one is locked future content.
 
-`jungle` is re-themed into `ghats`/`ghats_east`; its assets and lighting transfer
-directly. Net new: `ocean`, `grid`.
+| # | ID | Name | Build state | Narrative role | Variation lever (§3.1) |
+|---|---|---|---|---|---|
+| 1 | `jungle` | JUNGLE — GHOST BASE | **exists** | **Opening.** GHOST AI's hidden base. | Baseline. Close sightlines, dense cover. |
+| 2 | `warzone` | INDUSTRIAL WARZONE | **exists** | Human industrial base falling. | Baseline mixed arena — the reference site. |
+| 3 | `desert` | THAR RELAY | **exists** | Relay array. | **Long sightlines** — sniper-type, ranged-heavy waveSet. |
+| 4 | `urban` | URBAN COLLAPSE | **exists** | Ghost reaches population centres. | **Verticality + ambush** — tight lanes, swarm-type. |
+| 5 | `arctic` | ARCTIC BASE | **exists** | Human command bunker. | **Low visibility** — shorter fog, shield-type pushing through it. |
+| 6 | `ocean` | OCEAN LAUNCH GRID | **NEW** — hand-author | Ocean base. AND-gated. | **No ground approach** — platform arena over water, drone/flier-heavy waveSet, fall-off-edge danger. |
+| 7 | `alien` | XENO SITE | **exists** | Ghost's non-human tech origin. | **Unfamiliar** — spider/artillery types, alien movement feel. |
+| 8 | `grid` | CREON DATA GRID | **NEW** — hand-author | **Scripted defeat.** Last Earth site. | Non-geographic. Waves you *win* before the scripted collapse. |
+| 9 | `space` | ORBITAL WAR | **exists (placeholder art)** | Grid vs humans. Post-defeat act. | **Ship combat — 6DOF.** See §3.2; own phase, own gate. |
+| — | `mars` | MARS | exists | **LOCKED.** Visible future content. | — |
+
+**Net new authoring: `ocean`, `grid`.** `space` exists but is a placeholder (reuses the
+alien skybox and urban ground) and gets a full rework in §3.2.
+
+**Retired:** `ghats`, `ghats_east` — remove their `data/campaign.data.js` nodes.
+`data/scenes/ghats.data.js` and `assets/terrain/ghats/` stay on disk as the GIS
+research artifact (Appendix A); the scene simply leaves `MISSION_ORDER`.
+
+### 3.1 Per-site mechanical variation — the roster's real requirement
+
+**Every site must play differently, not just look different.** This is a stated product
+requirement, and it is what keeps an 8-mission campaign from feeling like one arena
+reskinned eight times.
+
+The good news: **the existing schema already carries most of it.** Three levers exist
+and are currently unused —
+
+1. **`waveSet` per scene.** P0.3 built named wave sets and `WaveManager.waveSet`, but
+   every arena still plays `classic_10`. Wiring is one line
+   (`WaveManager.waveSet = sceneConfig.waveSet || 'classic_10'`), and after that a
+   site's enemy mix, pacing, and difficulty curve are **pure data**. This is the single
+   highest-leverage unused feature in the codebase.
+2. **New enemy types** in `data/enemies.data.js` — open-ended, already planned as P7.4
+   (`sniper`, `swarm`, `shield`, `spider`, `artillery`) under a **hard cap of 3 new
+   behavioural flags**.
+3. **`flies` / `flyHeight`** — already exists on `drone`; it is the primitive `ocean`
+   needs, and the reason a flier-heavy platform arena costs no new systems.
+
+**Rule: a site's variation should be expressible as `waveSet` + enemy types + layout.**
+If a site needs a new *system*, that is a phase-level decision (only `space` qualifies —
+§3.2), not a roster task. This keeps Phase 5 as content work that truncates safely.
+
+### 3.2 `space` — the one genuine new system
+
+`space` is **ship-to-ship combat: the player pilots a ship, 6DOF**, fighting CREON
+machine vessels alongside human ships. This is not a scene variant — it is a **second
+movement and combat model** (flight controls, 3D dogfighting, no ground, no cover, no
+NavMesh).
+
+**Consequences, stated plainly:**
+
+- It gets **its own phase and its own gate** (Phase 5), not a roster row.
+- It sits on the **campaign finale**, so slipping it slips the ending. That is the risk.
+- **Fallback if the 6DOF gate fails:** `space` reverts to a **foot-soldier arena on a
+  station hull or capital-ship exterior** — same controller as every other site, low-gravity
+  tuning, with the fleet battle as skybox spectacle and large moving cover. The scene data
+  and narrative beat survive intact; only the movement model degrades. **Decide at the
+  gate, not later.**
 
 ### Branch structure — a graph, not a chain
 
 ```
-              ghats (start)
-                 │
-             ghats_east
+             jungle (start)
               ╱      ╲
         warzone       desert
            │             │
@@ -103,13 +190,16 @@ directly. Net new: `ocean`, `grid`.
                  │
                grid           ← SCRIPTED DEFEAT
                  │
-               space          ← finale
+               space          ← finale (6DOF — §3.2)
                  ┊
                mars           (locked, visible)
 ```
 
-**Truncation points if scope forces it:** after `arctic` (7 total), or after `ocean`
-(10). **`grid` and `space` are never cut** — they are the arc.
+`jungle` replaces the two-node `ghats`/`ghats_east` opening with a single-node one. The
+branch, the AND-gate, and the arc are otherwise unchanged.
+
+**Truncation points if scope forces it:** after `arctic` (5 total), or after `ocean`
+(6). **`grid` and `space` are never cut** — they are the arc.
 
 ---
 
@@ -324,7 +414,20 @@ Windows. Linear colour. ASTC on Android, BC7/BC5 on Windows. Port `QUALITY_PRESE
 export or submodule. Do **not** put a Unity project inside this repo — it destroys the
 no-build property AGENTS.md protects.
 
-### 6.2 Terrain A/B spike — the first gate
+### 6.2 Terrain A/B spike — ⛔ VOID (2026-08-17)
+
+> **This spike no longer applies.** It asked "which way do we import a DEM heightmap
+> into Unity" — and after §1.5 there is no DEM heightmap to import. **Phase 2 is now
+> scaffold + data importer + a perf gate on an imported hand-authored arena** (see §8
+> and TASKS.md Phase 2). `bake-mesh.mjs` (Path A) was never built and is not needed.
+>
+> **What survives from this section:** the *gate criteria*, which carried over
+> verbatim to GATE P2 — ≥30fps sustained with 12+ enemies, measured on a **real
+> mid-range Android device** (~3-year-old ~$250 phone), with **thermal behaviour over
+> 10 minutes**, because throttle is what actually kills mobile. And its rule: if the
+> gate fails, **reduce scope now, not "optimize later."**
+>
+> Kept below for history only.
 
 Build `ghats` **both ways** and measure. Unity step 1, before any gameplay systems.
 
@@ -351,8 +454,13 @@ does not use. Measure it anyway.
 
 ### 6.3 Port order (adapted from track-c)
 
-1. **Terrain A/B spike + `ghats` static** ← **gate**
-2. **Data importer** — SOs + editor importer. Early, ~200 LOC.
+> **Step 1 revised 2026-08-17** (§1.5): the terrain A/B spike is void. **The data
+> importer (step 2) is now the first Unity task**, followed by building `warzone`
+> statically from `data/` as the perf-gate scene. Steps 3–14 are unchanged — none of
+> them assumed GIS terrain.
+
+1. ~~**Terrain A/B spike + `ghats` static**~~ → **`warzone` static from `data/`** ← **gate**
+2. **Data importer** — SOs + editor importer. Early, ~200 LOC. **← now step 1.**
 3. **Player controller + Input System** — touch first, then gamepad, then KBM.
 4. **Enemies + NavMesh.** **Do not port `enemies.js` pathfinding** — the
    `_noProgress`/wall-follow/`_climb` stack exists only because Three.js gives you
@@ -448,21 +556,32 @@ space, both hard-surface). Budget ~5 distinct kits for 11 sites.
 
 Cadence: **solo, ~12h/week ≈ 50h/month.** This is the binding constraint.
 
+> **Revised 2026-08-17** (§1.5). Phase 1 is closed as research (Appendix A); Phase 2
+> is rebuilt around the data importer; a new Phase 5 isolates `space`'s 6DOF risk.
+
 | Phase | Work | Est. | Gate (kill/continue) |
 |---|---|---|---|
-| **0 — Data foundation** (web repo) | Externalize `data/*`; `campaign.data.js` graph; `save.js` v2 + migration; `data-to-json.mjs`; mission/objective + scripted-defeat schemas | 4–6 wk | All 8 arenas load unchanged from `data/`; `gen-pages.mjs --check` passes; JSON round-trips. **Nothing downstream is safe to start until this is done** — the old roadmap's "week 5 hard deadline", still the one hard ordering constraint. |
-| **1 — GIS pipeline + first site (web preview)** | `tools/gis/`; `sites.data.js`; `ghats` heightmap + albedo; `ground.type:'heightmap'` in `src/scenes.js` | 4–6 wk | **Does Ghats read as a real, specific place in the browser? Be prepared for "no."** If real DEM is indistinguishable from good procedural noise, the GIS spine is not worth its cost — fall back to hand-authored sites with GIS for lighting/palette only. Find out with one site and two weeks, not a pipeline and three months. |
-| **2 — Unity + terrain A/B spike** | Unity 6 URP setup; import `ghats` both ways; profile on real mid-range Android | 6–8 wk | **≥30fps sustained, 12+ enemies, 10-min thermal soak.** If neither path clears it, reduce scope **now**. |
-| **3 — Unity vertical slice** | Port steps 2–8: importer, player, enemies+NavMesh, waves, baked audio, HUD, missions. One site, one full mission, touch + gamepad | 12–16 wk | **Is it fun on a phone — judged by someone other than you?** If touch controls make a cover shooter miserable, solve it here, not after 11 sites exist. |
-| **4 — Campaign spine** | Hub map; `ghats`, `warzone`, `arctic` (proves the branch); then **`grid` + `space`** | 12–16 wk | Start at Ghats → real branch choice → lose at the Grid → fight in space. **This is the minimum shippable product** — a campaign with a beginning, middle, and ending. Ship it if you must stop here. |
-| **5 — Roster fill** | `ghats_east`, `urban`, `desert`, `ocean`, `alien` — data + GIS bake + prop kit, no new systems | 2–4 wk/site | **Truncates at any site boundary.** |
-| **6 — Android release** | Play Console, keystore (**backed up twice**), listing, closed testing, ASTC budget | 4–6 wk | Play Asset Delivery only if >200MB — likely 60–120MB; don't pre-build packs. |
-| **7 — Steam** | Track F unchanged; `mars` is a natural post-launch drop | gated | On Android reception. |
+| **0 — Data foundation** (web repo) ✅ | Externalize `data/*`; `campaign.data.js` graph; `save.js` v2 + migration; `data-to-json.mjs`; mission/objective + scripted-defeat schemas | done | **PASSED 2026-08-17.** All 8 arenas load unchanged from `data/`; `gen-pages.mjs --check` passes; JSON round-trips; v1 save migrates; AND-gate resolves. |
+| **1 — GIS pipeline** ⛔ | `tools/gis/`; `ghats` heightmap + albedo; `ground.type:'heightmap'` | done | **ANSWERED "NO" 2026-08-17 — closed as a research track.** Real DEM did not read as a more real place than the hand-authored arenas. Fallback taken as written: hand-authored sites. See §1.5 + Appendix A. |
+| **2 — Unity foundation + perf gate** | Unity 6 URP scaffold; **data importer** (moved up from P3.1); import `warzone` as a static scene from `data/`; profile on real mid-range Android with enemy stand-ins | 6–8 wk | **≥30fps sustained, 12+ enemies, 10-min thermal soak** on a ~$250 3-year-old phone — *and* a `data/` edit round-trips into Unity with zero hand-editing. If perf fails, reduce scope **now**, not later. |
+| **3 — Unity vertical slice** | Player controller, enemies + NavMesh, WaveManager, baked audio, HUD, mission/objective system + `Target`/`Entity`. One site, one full mission, touch + gamepad | 12–16 wk | **Is it fun on a phone — judged by someone other than you?** If touch controls make a cover shooter miserable, solve it here, not after the roster exists. |
+| **4 — Campaign spine (MSP)** | Hub map; per-scene `waveSet` wiring (§3.1); `jungle`, `warzone`, `arctic` (proves the branch); **`grid` + the scripted defeat**; `space` **as a foot-soldier arena** (the §3.2 fallback) | 12–16 wk | Start at jungle → real branch choice → lose at the Grid → fight in space. **This is the minimum shippable product.** Ship it if you must stop here — and note it ships *without* 6DOF. |
+| **5 — `space` 6DOF ship combat** | Second movement/combat model: flight controller, 3D dogfighting, CREON + human vessels (§3.2) | 6–10 wk | **Is piloting fun on touch, and does it beat the Phase 4 foot-soldier version?** If no on either count, **keep the Phase 4 version and cut this phase.** The campaign already ships without it. |
+| **6 — Roster fill** | `ocean` (new), `desert`, `urban`, `alien` — layout + `waveSet` + enemy types per §3.1. No new systems. | 2–4 wk/site | **Truncates at any site boundary.** A site needing a new *system* is out of scope by definition. |
+| **7 — Android release** | Play Console, keystore (**backed up twice**), listing, closed testing, ASTC budget | 4–6 wk | Play Asset Delivery only if >200MB — likely 60–120MB; don't pre-build packs. |
+| **8 — Steam** | Track F unchanged; `mars` is a natural post-launch drop | gated | On Android reception. |
 
-**Honest totals: Phases 0–4 ≈ 40–55 weeks. Phases 0–6 ≈ 60–75 weeks.** The original
-roadmap's "~week 50+" was the right order of magnitude for a *slice*; a full 11-site
-AAA-oriented campaign at this cadence is a **2+ year project**. The phasing above exists
-so a shippable game lands at the end of Phase 4 and everything after is additive.
+**Why Phase 5 sits after the MSP gate, not before it:** 6DOF is the only genuinely new
+system left, it lands on the finale, and it is the most likely thing to slip. Phasing it
+*after* a complete shippable campaign means the ending exists either way — Phase 5 is an
+upgrade to a shipped beat, not a dependency of it. This is the same structural trick that
+keeps `grid`+`space` inside Phase 4 rather than the roster.
+
+**Honest totals: Phases 2–4 ≈ 30–40 weeks to a shippable campaign.** Phase 5 adds 6–10;
+the roster adds 2–4 per site. At ~12h/week this remains a multi-year project — the phasing
+exists so a complete game lands at the end of Phase 4 and everything after is additive.
+Retiring `ghats`/`ghats_east` and dropping the GIS pipeline took roughly 8–12 weeks of
+projected work out of the plan.
 
 ---
 
@@ -474,24 +593,38 @@ so a shippable game lands at the end of Phase 4 and everything after is additive
    palette, amber-signal discipline, the CREON billboard). **Redefine the bar as "reads
    as premium and consistent," not "matches a 200-person studio."** Baked normals + LODs
    + one strong lighting model per biome buys more perceived quality than any feature.
-2. **11 sites is a lot** — the back half is 4–6 months. Mitigated structurally: the
-   roster truncates at site boundaries, biomes share prop kits, and `grid`+`space` are
-   built in Phase 4 so the arc is never hostage to the roster.
+2. **9 sites is still a lot** — mitigated structurally: the roster truncates at site
+   boundaries, six sites already exist as finished data, and `grid`+`space` are built in
+   Phase 4 so the arc is never hostage to the roster.
 3. **Scripted defeat is easy to make feel cheap.** Mitigations in §4.4. If it still feels
    cheap in playtest, the fallback is a **pyrrhic win** (objectives met, Grid escapes to
    orbit) — preserves the space act at lower narrative risk.
-4. **The GIS hypothesis may be false.** Players may not perceive real terrain as real.
-   Phase 1's gate exists to kill this cheaply.
-5. **Unity is more fun than finishing the data layer** — the old roadmap's stated death
-   mode. The Phase 0 gate is the defence: **do not open Unity before `data/` is done.**
-6. **Web repo bit-rot** once gameplay is frozen. Mitigation: only two things must keep
-   passing — `gen-pages.mjs --check`, and "a generated scene loads in the unmodified
-   engine." Let everything else drift.
-7. **`ocean` is the hardest GIS site** — bathymetry, water rendering, platform geometry,
-   and no terrain to fight on. It is the **first candidate for reclassification** to
-   hand-authored, with GIS supplying only sea state and horizon.
-8. **Two repos will diverge.** The `data/` export is the contract — give it a `--check`
-   mode that fails when the Unity-side JSON is stale, in `tools/deploy.mjs`'s style.
+4. ~~**The GIS hypothesis may be false.**~~ **RESOLVED 2026-08-17 — it was false.**
+   Phase 1's gate killed it cheaply, exactly as designed: one site, ~two weeks, real
+   evidence. See §1.5 and Appendix A. *Keep this entry — it is the plan's best proof
+   that the gate structure works.*
+5. **NEW — `space` 6DOF is the largest remaining unknown.** A second movement model,
+   on the finale, with touch controls as the hard part. **Mitigated by Phase 5's
+   position**: the campaign ships complete at the end of Phase 4 with `space` as a
+   foot-soldier arena, so 6DOF can slip or be cut without costing the ending (§3.2).
+   **Do not move Phase 5 earlier** — that would put the ending behind the riskiest work.
+6. **NEW — "every site plays differently" can quietly become "every site needs a new
+   system."** That is how a roster phase turns into six unplanned feature phases.
+   **Mitigated by §3.1's rule**: variation must be expressible as `waveSet` + enemy
+   types + layout. A site that needs more is a phase-level decision, and only `space`
+   has earned one.
+7. **Unity is more fun than finishing the data layer** — the old roadmap's stated death
+   mode. The Phase 0 gate was the defence and it **held**: `data/` was finished and
+   gated before any Unity work started.
+8. **Web repo bit-rot** once gameplay is frozen. Mitigation: only two things must keep
+   passing — `gen-pages.mjs --check`, and "a scene loads in the unmodified engine."
+   Let everything else drift.
+9. **`ocean` is the hardest new site** — platform geometry over water, no ground
+   approach, fall-off-edge rules. No longer a *GIS* problem (no bathymetry needed), but
+   still the roster's highest-effort row. Its flier-heavy design leans on `flies`/
+   `flyHeight`, which already exist.
+10. **Two repos will diverge.** The `data/` export is the contract — give it a `--check`
+    mode that fails when the Unity-side JSON is stale, in `tools/deploy.mjs`'s style.
 
 ---
 
@@ -565,3 +698,67 @@ so a shippable game lands at the end of Phase 4 and everything after is additive
 | `src/scenes.js` | one new branch: `ground.type: 'heightmap'` |
 | `src/enemies.js` | `ENEMY_TYPES`/`WAVE_CONFIGS` move out to `data/` |
 | *(separate repo)* `machinewars-unity` | new Unity 6 URP project (Phase 2) |
+
+---
+
+## Appendix A — GIS research track (closed)
+
+**Status: closed 2026-08-17.** Ran as Phase 1, answered its gate question "no", and is
+retained as reference. See §1.5 for the decision. **Do not build on this; do not delete
+it.** Two findings are worth keeping.
+
+### A.1 Real DEM is useless at combat scale — the load-bearing finding
+
+Measured against Agumbe, Western Ghats (13.5178N, 75.0906E), AWS Terrarium tiles at z15
+(4.64 m/px at that latitude):
+
+| Window | Relief | Reads as |
+|---|---|---|
+| 400m (arena) | **27.9m** | A single smooth tilted plane. No cover, no ridges, no features. |
+| 1200m (horizon) | **50.3m** | Real structure — ridges, valleys, recognizable landscape. |
+
+At 4.6 m/px a 200m firefight box contains **~43 real samples**; everything a player
+fights around is interpolation. **Real elevation data is worthless inside ~400m and only
+becomes interesting beyond ~600m.** This held at every scale it was retested, including
+at texture-tile scale during the albedo rewrite.
+
+This is why the hybrid ("authored floor + real horizon") was adopted mid-phase, and
+ultimately why the whole track was closed: once the only value is a distant silhouette,
+a hand-authored skybox or backdrop mesh buys the same thing for far less machinery.
+
+**If real terrain is ever revisited, revisit it as horizon/backdrop art only** — never
+as the surface the player fights on.
+
+### A.2 The `mat.color` bug — a real engine bug, fixed and kept
+
+`_buildHeightmapGround()` (`src/scenes.js`) set `mat.color = col3(gc.fallbackColor)`
+**unconditionally**, rather than only inside the albedo texture's load-error callback
+(the pattern the sibling `'texture'` ground branch uses correctly). Because
+`MeshStandardMaterial.map` multiplies against `.color`, this silently crushed a
+successfully-loaded albedo toward near-black.
+
+It cost two rounds of chasing the wrong thing (fog/lighting, then a full texture-generator
+rewrite) before the actual cause surfaced. **This is not GIS-specific** — it would hit any
+future `ground.type: 'heightmap'` scene identically, which is why the fix is committed on
+its own merit regardless of the pipeline decision.
+
+**Transferable lesson:** when a material looks wrong and the texture *loaded fine*, check
+what multiplies against it before rewriting the texture.
+
+### A.3 What exists on disk
+
+| Path | What it is |
+|---|---|
+| `tools/gis/*.mjs` | Working, zero-dep pipeline: fetch → decode → heightmap + albedo bake. `--check`/`--dry-run` throughout. |
+| `assets/terrain/ghats/` | Baked 16-bit heightmap PNG + metadata JSON + albedo. Elevation 619.5–704.1m over a 2400m window. |
+| `data/scenes/ghats.data.js` | The playable ghats scene. Leaves `MISSION_ORDER` when the roster change lands; the file stays. |
+| `_buildHeightmapGround()` (`src/scenes.js`) | The `ground.type: 'heightmap'` engine branch. Working, bug-fixed. |
+| `docs/v2/spike/` | Original feasibility spike decoders. |
+| `docs/track-e-gis.md` | The original GIS track doc. |
+
+**Not built, deliberately:** `fetch-imagery.mjs` (Sentinel-2 albedo) and
+`bake-mesh.mjs` (Path A of the void terrain A/B spike). Neither is needed now.
+
+**`docs/v2/gis-attribution.md` (was P1.6) is not required** — no GIS-derived artifact
+ships in the game. If any baked terrain output is ever shipped, the attribution
+obligations in §5.1 apply and that doc must be written first.
