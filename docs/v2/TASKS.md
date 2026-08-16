@@ -68,7 +68,7 @@ Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
   **Done when:** all three weapons fire, switch (mouse wheel + gamepad LB/RB), and reload
   correctly in-browser; score still increments per kill type.
 
-- [ ] **P0.3 — Externalize `ENEMY_TYPES` + `WAVE_CONFIGS` as named sets** · **M**
+- [x] **P0.3 — Externalize `ENEMY_TYPES` + `WAVE_CONFIGS` as named sets** · **M** *(2026-08-17)*
   `ENEMY_TYPES` (`src/enemies.js:165`) → `data/enemies.data.js`.
   `WAVE_CONFIGS` (`src/enemies.js:194`) → `data/waves/<setId>.data.js` — **named sets,
   not one global array.** Seed with `classic_10` reproducing today's exact 10 waves.
@@ -384,7 +384,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 2 | ⬜ |
+| P0 — Data foundation | 8 | 3 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |

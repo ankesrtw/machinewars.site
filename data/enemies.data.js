@@ -1,14 +1,45 @@
 /* ═══════════════════════════════════════════════════════════════════
-   enemies.data.js — per-type score values.
-   Externalized from src/main.js's SCORE_VALUES (P0.2). Keys must match
-   ENEMY_TYPES in src/enemies.js. P0.3 will add the full enemy type
-   definitions here; this seeds just the score field per the roadmap's
-   §4.1 table. See data/README.md for the content contract.
+   enemies.data.js — per-type enemy definitions + score values.
+   Externalized from src/enemies.js's ENEMY_TYPES (P0.3) and
+   src/main.js's SCORE_VALUES (P0.2, folded in here as `score`).
+   Colors are [r,g,b] arrays → THREE.Color, same as the original.
+   Ranged fields: firesBack, fireInterval (ms between shots), fireRange,
+   fireDamage, fireSpread (radians, widened by distance), windUp
+   (telegraph ms). See data/README.md for the content contract.
    ═══════════════════════════════════════════════════════════════════ */
 export default {
-    scout: { score: 100 },
-    grunt: { score: 200 },
-    heavy: { score: 500 },
-    drone: { score: 150 },
-    boss:  { score: 1000 },
+    scout: {
+        name: 'SCOUT', hp: 1, speed: 3.0, damage: 15, modelScale: 5.0, eyeHeight: 1.6,
+        eyeColor: [0, 0.8, 1.0], eyeIntensity: 1.4, eyeRange: 5, tintColor: [0.15, 0.35, 0.4], emissiveAccent: [0, 0.3, 0.5],
+        hitboxH: 5.0, hitboxW: 2.5, zigzag: true,
+        score: 100,
+    },
+    grunt: {
+        name: 'GRUNT', hp: 3, speed: 4.5, damage: 20, modelScale: 4.0, eyeHeight: 2.0,
+        eyeColor: [1.0, 0.5, 0], eyeIntensity: 1.8, eyeRange: 6, tintColor: [0.35, 0.22, 0.12], emissiveAccent: [0.4, 0.15, 0],
+        hitboxH: 5.0, hitboxW: 2.5, zigzag: false,
+        firesBack: true, fireInterval: 5200, fireRange: 30, fireDamage: 6, fireSpread: 0.075, windUp: 520,
+        score: 200,
+    },
+    heavy: {
+        name: 'HEAVY', hp: 6, speed: 1.56, damage: 30, modelScale: 6.0, eyeHeight: 2.4,
+        eyeColor: [1.0, 0, 0], eyeIntensity: 2.2, eyeRange: 7, tintColor: [0.4, 0.08, 0.05], emissiveAccent: [0.5, 0, 0],
+        hitboxH: 6.0, hitboxW: 3.0, zigzag: false,
+        firesBack: true, fireInterval: 4000, fireRange: 42, fireDamage: 10, fireSpread: 0.045, windUp: 460,
+        score: 500,
+    },
+    drone: {
+        name: 'DRONE', hp: 2, speed: 5.4, damage: 10, modelScale: 2.5, eyeHeight: 3.5,
+        eyeColor: [0.6, 0, 1.0], eyeIntensity: 1.6, eyeRange: 5, tintColor: [0.2, 0.1, 0.3], emissiveAccent: [0.3, 0, 0.5],
+        hitboxH: 2.5, hitboxW: 2.0, zigzag: true, flies: true, flyHeight: 4.0,
+        firesBack: true, fireInterval: 3000, fireRange: 34, fireDamage: 5, fireSpread: 0.06, windUp: 340,
+        score: 150,
+    },
+    boss: {
+        name: 'BOSS', hp: 25, speed: 1.2, damage: 50, modelScale: 10.0, eyeHeight: 3.5,
+        eyeColor: [1.0, 0, 0], eyeIntensity: 3.0, eyeRange: 10, tintColor: [0.5, 0.05, 0], emissiveAccent: [0.8, 0.1, 0],
+        hitboxH: 9.0, hitboxW: 5.0, zigzag: false,
+        firesBack: true, fireInterval: 2000, fireRange: 50, fireDamage: 14, fireSpread: 0.035, windUp: 600,
+        score: 1000,
+    },
 };

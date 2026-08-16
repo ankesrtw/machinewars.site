@@ -10,7 +10,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { World, SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER } from './scenes.js';
-import { WaveManager, WAVE_CONFIGS, setContext } from './enemies.js';
+import { WaveManager, setContext } from './enemies.js';
 import { HUD } from './hud.js';
 import { Audio } from './audio.js';
 import { withVersion, BUILD_ID } from './version.js';
@@ -1125,7 +1125,7 @@ function onWaveComplete() {
 }
 
 function showWavePreview(n) {
-    const c = WAVE_CONFIGS[Math.min(n - 1, WAVE_CONFIGS.length - 1)];
+    const c = WaveManager.getWaveConfig(n);
     HUD.showWaveBanner(c.enemies.map((e) => `${e.count} ${e.type.toUpperCase()}${e.count > 1 ? 'S' : ''}`).join('  ·  '));
 }
 function showWaveStats(n) {

@@ -14,6 +14,8 @@ import { loadGLB } from './gltf.js';
 import { SCENE_MODEL_BASE } from './scenes-data.js';
 import { withVersion } from './version.js';
 import { col3 } from './math.js';
+import ENEMY_TYPES_DATA from '../data/enemies.data.js';
+import CLASSIC_10 from '../data/waves/classic_10.data.js';
 
 const _modelCache = {}; // type -> gltf.scene template
 const _modelAnimCache = {}; // type -> gltf.animations (rigged types only)
@@ -158,51 +160,17 @@ function _buildRobotGeometries(type, cfg) {
 // obstacle list, and cover doesn't move on a per-frame timescale.
 const LOS_CACHE_MS = 180;
 
-// ── Enemy type configs (colors as [r,g,b] arrays → THREE.Color) ─────
-// Ranged fields: firesBack, fireInterval (ms between shots), fireRange,
-// fireDamage, fireSpread (radians, widened by distance), windUp (telegraph ms),
-// meleeInterval (contact-damage cooldown).
-export const ENEMY_TYPES = {
-    scout: { name: 'SCOUT', hp: 1, speed: 3.0, damage: 15, modelScale: 5.0, eyeHeight: 1.6,
-        eyeColor: [0, 0.8, 1.0], eyeIntensity: 1.4, eyeRange: 5, tintColor: [0.15, 0.35, 0.4], emissiveAccent: [0, 0.3, 0.5],
-        hitboxH: 5.0, hitboxW: 2.5, zigzag: true },
-    // Grunts are the backbone of every wave and used to be pure suicide-rushers,
-    // so mid-wave fights had no ranged threat at all. Slow, inaccurate fire at
-    // medium range gives them presence without making them snipers.
-    grunt: { name: 'GRUNT', hp: 3, speed: 4.5, damage: 20, modelScale: 4.0, eyeHeight: 2.0,
-        eyeColor: [1.0, 0.5, 0], eyeIntensity: 1.8, eyeRange: 6, tintColor: [0.35, 0.22, 0.12], emissiveAccent: [0.4, 0.15, 0],
-        hitboxH: 5.0, hitboxW: 2.5, zigzag: false,
-        firesBack: true, fireInterval: 5200, fireRange: 30, fireDamage: 6, fireSpread: 0.075, windUp: 520 },
-    heavy: { name: 'HEAVY', hp: 6, speed: 1.56, damage: 30, modelScale: 6.0, eyeHeight: 2.4,
-        eyeColor: [1.0, 0, 0], eyeIntensity: 2.2, eyeRange: 7, tintColor: [0.4, 0.08, 0.05], emissiveAccent: [0.5, 0, 0],
-        hitboxH: 6.0, hitboxW: 3.0, zigzag: false,
-        firesBack: true, fireInterval: 4000, fireRange: 42, fireDamage: 10, fireSpread: 0.045, windUp: 460 },
-    drone: { name: 'DRONE', hp: 2, speed: 5.4, damage: 10, modelScale: 2.5, eyeHeight: 3.5,
-        eyeColor: [0.6, 0, 1.0], eyeIntensity: 1.6, eyeRange: 5, tintColor: [0.2, 0.1, 0.3], emissiveAccent: [0.3, 0, 0.5],
-        hitboxH: 2.5, hitboxW: 2.0, zigzag: true, flies: true, flyHeight: 4.0,
-        firesBack: true, fireInterval: 3000, fireRange: 34, fireDamage: 5, fireSpread: 0.06, windUp: 340 },
-    boss: { name: 'BOSS', hp: 25, speed: 1.2, damage: 50, modelScale: 10.0, eyeHeight: 3.5,
-        eyeColor: [1.0, 0, 0], eyeIntensity: 3.0, eyeRange: 10, tintColor: [0.5, 0.05, 0], emissiveAccent: [0.8, 0.1, 0],
-        hitboxH: 9.0, hitboxW: 5.0, zigzag: false,
-        firesBack: true, fireInterval: 2000, fireRange: 50, fireDamage: 14, fireSpread: 0.035, windUp: 600 },
-};
+// ── Enemy type configs + wave sets ──────────────────────────────────
+// ENEMY_TYPES: data/enemies.data.js (P0.3). WAVE_SETS: named sets under
+// data/waves/, keyed by set id — WaveManager.startWave() takes a
+// waveSet id (defaults to 'classic_10', the original single array).
 // NOTE: v1 speeds were per-frame (~60fps). V2 is dt-based, so speeds are ×60.
 // NOTE: modelScale is retained for the procedural fallback silhouettes only.
 // GLB bodies are scaled from their measured height to hitboxH (see _build), so
 // the visible robot and its raycast hitbox always agree.
+export const ENEMY_TYPES = ENEMY_TYPES_DATA;
 
-export const WAVE_CONFIGS = [
-    { wave: 1, enemies: [{ type: 'scout', count: 3 }] },
-    { wave: 2, enemies: [{ type: 'scout', count: 3 }, { type: 'grunt', count: 2 }] },
-    { wave: 3, enemies: [{ type: 'scout', count: 3 }, { type: 'grunt', count: 3 }, { type: 'heavy', count: 1 }] },
-    { wave: 4, enemies: [{ type: 'scout', count: 2 }, { type: 'grunt', count: 3 }, { type: 'heavy', count: 1 }, { type: 'drone', count: 2 }] },
-    { wave: 5, enemies: [{ type: 'scout', count: 3 }, { type: 'grunt', count: 4 }, { type: 'heavy', count: 2 }, { type: 'drone', count: 2 }] },
-    { wave: 6, enemies: [{ type: 'grunt', count: 5 }, { type: 'heavy', count: 2 }, { type: 'drone', count: 3 }] },
-    { wave: 7, enemies: [{ type: 'scout', count: 4 }, { type: 'grunt', count: 5 }, { type: 'heavy', count: 3 }, { type: 'drone', count: 3 }] },
-    { wave: 8, enemies: [{ type: 'grunt', count: 6 }, { type: 'heavy', count: 3 }, { type: 'drone', count: 4 }] },
-    { wave: 9, enemies: [{ type: 'scout', count: 5 }, { type: 'grunt', count: 5 }, { type: 'heavy', count: 4 }, { type: 'drone', count: 3 }] },
-    { wave: 10, enemies: [{ type: 'grunt', count: 5 }, { type: 'heavy', count: 3 }, { type: 'drone', count: 3 }, { type: 'boss', count: 1 }] },
-];
+const WAVE_SETS = { classic_10: CLASSIC_10 };
 
 function withTimeout(promise, ms, label) {
     return Promise.race([
@@ -236,6 +204,7 @@ export const WaveManager = {
     lastSpawnTime: 0,
     spawnInterval: 1400,
     waveActive: false,
+    waveSet: 'classic_10',
     _modelsReady: false,
 
     async init() {
@@ -244,10 +213,15 @@ export const WaveManager = {
         this._modelsReady = true;
     },
 
+    getWaveConfig(waveNum) {
+        const waves = WAVE_SETS[this.waveSet] || WAVE_SETS.classic_10;
+        return waves[Math.min(waveNum - 1, waves.length - 1)];
+    },
+
     startWave(waveNum) {
         this.waveActive = true;
         this.lastSpawnTime = performance.now();
-        const config = WAVE_CONFIGS[Math.min(waveNum - 1, WAVE_CONFIGS.length - 1)];
+        const config = this.getWaveConfig(waveNum);
         const list = [];
         for (const { type, count } of config.enemies) for (let i = 0; i < count; i++) list.push(type);
         for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }

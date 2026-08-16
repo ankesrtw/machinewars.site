@@ -27,13 +27,17 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P0 — Data foundation (P0.1, P0.2 done). P1 is paused at P1.4 (P1.1–P1.4 done,
-P1.5 blocked until the P0 gate passes — see below).
-**Status:** `WEAPONS` and `SCORE_VALUES` are externalized to `data/weapons.data.js` and
-`data/enemies.data.js` (score-only stub; P0.3 fills in the rest). `src/main.js` imports
-both and derives `SCORE_VALUES` from `enemies.data.js`'s per-type `score` field.
-`SCENE_CONFIGS`, `ENEMY_TYPES`, `WAVE_CONFIGS` etc. are still in `src/`, untouched.
-**Last commit:** (this session) P0.2 externalize `WEAPONS` + `SCORE_VALUES`.
+**Phase:** P0 — Data foundation (P0.1, P0.2, P0.3 done). P1 is paused at P1.4 (P1.1–P1.4
+done, P1.5 blocked until the P0 gate passes — see below).
+**Status:** `WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, and `WAVE_CONFIGS` are all
+externalized. `data/enemies.data.js` now holds the full per-type enemy definitions
+(hp/speed/damage/etc.) with `score` folded in as one more field per type — no separate
+lookup. `data/waves/classic_10.data.js` holds the original 10-wave array; `WaveManager`
+gained a `waveSet` field (defaults `'classic_10'`) and a `getWaveConfig(n)` method that
+looks it up from a `WAVE_SETS` map in `src/enemies.js` — this is the seam P0.7/Unity or a
+future difficulty mode would add a second named set through, no caller changes needed.
+`SCENE_CONFIGS` is still in `src/`, untouched — that's P0.4.
+**Last commit:** (this session) P0.3 externalize `ENEMY_TYPES` + `WAVE_CONFIGS`.
 
 P1's heightmap ground engine code (`_buildHeightmapGround()` in `src/scenes.js`, P1.4)
 still exists and is still **unwired and unverified in the browser** — no scene config sets
@@ -197,24 +201,36 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.3** (see `docs/v2/TASKS.md` Phase 0) — externalize `ENEMY_TYPES` +
-`WAVE_CONFIGS` as named sets.
+**Task: P0.4** (see `docs/v2/TASKS.md` Phase 0) — externalize `SCENE_CONFIGS` →
+`data/scenes/<slug>.data.js` ×8. **The big one — 1,501 LOC.** This is what unblocks
+resuming P1.5/`ghats` (P1's paused heightmap-ground work has been waiting on this since
+2026-08-17).
 
-1. `ENEMY_TYPES` (`src/enemies.js:165`) → merge into `data/enemies.data.js` (which
-   currently holds only the `score` field per type from P0.2 — extend each entry with
-   `hp`, `speed`, `damage`, `modelScale`, `eyeHeight`, `eyeColor`, etc., keeping `score`
-   alongside them, not a separate lookup).
-2. `WAVE_CONFIGS` (`src/enemies.js:194`) → `data/waves/<setId>.data.js` — **named sets,
-   not one global array.** Seed with `classic_10` reproducing today's exact 10 waves.
-3. Update both consumers: `src/enemies.js:250` and `src/main.js:1128`. Have
-   `WaveManager` take a `waveSet` id, defaulting to `classic_10`.
-4. Verify: a full 10-wave run completes with identical spawn composition to today, boss
-   on wave 10 — needs the browser, not just `gen-pages.mjs --check`.
-5. Commit, tick P0.3, update this file.
+1. `src/scenes-data.js` becomes a thin loader that imports the 8 per-arena files, merges
+   them, and applies the existing `ASSET_BASE` resolution — **keep every current export**
+   (`SCENE_CONFIGS`, `DEFAULT_SCENE`, `MISSION_ORDER`, `SCENE_MODEL_BASE`,
+   `SCENE_TEXTURE_BASE`, `ASSET_BASE`). Consumers: `src/scenes.js:8`, `src/save.js:9`,
+   `tools/gen-pages.mjs:31`, `tools/stamp-assets.mjs:26`; `src/scenes.js` re-exports to
+   `src/main.js:12`.
+2. Split **one arena first**, verify it loads and plays identically, then batch the
+   remaining seven — don't do all 8 blind before the first browser check.
+3. Per this task's own note: the split should produce a `data/scenes/ghats.data.js` slot
+   even though `ghats` isn't playable yet (`implemented:false`, P0.5's job) — that's
+   where P1.5 lands instead of hand-editing `scenes-data.js`.
+4. Verify: all 8 arenas load and play identically in-browser; `node tools/gen-pages.mjs
+   --check` exits 0; `node tools/stamp-assets.mjs` still resolves every page.
+5. Commit, tick P0.4, update this file.
 
-Then continue down Phase 0 in order: **P0.4 (scenes, the big one — 1,501 LOC, this is
-what unblocks resuming P1.5/`ghats`)** → P0.5 (campaign graph) → P0.6 (save v2 migration)
-→ P0.7 (missions) → P0.8 (docs).
+Then continue down Phase 0 in order: P0.5 (campaign graph) → P0.6 (save v2 migration) →
+P0.7 (missions) → P0.8 (docs).
+
+### P0.3 wiring note for whoever touches enemies.js next
+
+`WaveManager.waveSet` is a plain field, not yet settable from scene config — every arena
+still plays `classic_10`. If a future task (P0.4/scenes or later) wants a per-arena wave
+set, set `WaveManager.waveSet = sceneConfig.waveSet || 'classic_10'` before
+`startWave()`; `getWaveConfig()` already falls back to `classic_10` if the id is missing
+from `WAVE_SETS`, so this is additive, not a schema break.
 
 **P0.4 note relevant to P1**: when this splits `SCENE_CONFIGS`, the split should produce a
 `data/scenes/ghats.data.js` slot even though `ghats` doesn't exist as a playable site yet
@@ -296,3 +312,17 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   score-increment-on-kill was verified by static derivation check instead (`SCORE_VALUES`
   computed from the new file matches the original literal exactly) plus reading
   `addScore()` — no behavior change there, only where `SCORE_VALUES` comes from.
+- **2026-08-17** — P0.3: `ENEMY_TYPES` folded into `data/enemies.data.js` alongside the
+  `score` field added in P0.2 (one object per type, not two lookups). `WAVE_CONFIGS` →
+  `data/waves/classic_10.data.js`, byte-identical to the original array (diffed via
+  `JSON.stringify` equality in Node). `src/enemies.js` gained a `WAVE_SETS` map (currently
+  just `{ classic_10 }`) and `WaveManager.getWaveConfig(n)` / `.waveSet` (defaults
+  `'classic_10'`); `startWave()` and `src/main.js`'s `showWavePreview()` both call the new
+  method instead of indexing the old exported array. Verified live in `/play/warzone/`:
+  `WaveManager.getWaveConfig(n)` for all 10 waves matches the original table exactly (boss
+  only on wave 10), `ENEMY_TYPES` has all 5 keys with correct score/hp, and — the actual
+  gameplay check — wave 1 spawned exactly 3 scouts (`activeEnemies` inspected directly),
+  zero console errors. Did not run a full real-time 10-wave clear (would take many
+  minutes per wave with no dev fast-forward available); confidence instead comes from
+  every wave's config matching byte-for-byte plus wave 1's actual spawn behavior
+  confirming the wiring executes correctly, not just that the data is well-formed.
