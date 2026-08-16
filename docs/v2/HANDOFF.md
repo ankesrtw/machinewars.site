@@ -85,6 +85,45 @@ builds `tools/validate-data.mjs` **first**, then authors the waveSets.
 
 ---
 
+**P1.9.3 done (2026-08-17).** Authored `data/scenes/ocean.data.js` + `data/scenes/
+grid.data.js` (net-new sites, JSON-literal style matching every other `data/scenes/`
+file) plus `data/waves/ocean_air.data.js` (drone-heavy: highest/earliest drone counts
+of any waveSet, grunt/heavy as the ground-adjacent threat, expresses "no ground
+approach" per §3.1 using only the existing `flies`/`flyHeight` roster — no new enemy
+types). `data/missions/m203.data.js` (new — ocean's mission, node `ocean`, requires
+`urban`+`arctic` AND-gate, `rewards.unlockNode: 'alien'`) doubles as the **second Grid
+foreshadow** §4.4 asks for (m401's header used to flag this as a TODO since ocean had
+no mission yet — resolved, m401's header comment updated to match). `m401` (`grid`'s
+scripted-defeat mission) **already existed** from P0.7 and was checked against the new
+`grid.data.js` — still fits verbatim, no edit needed beyond the header-comment note.
+Both `ocean`/`grid` nodes in `data/campaign.data.js` flipped `implemented: false →
+true`. No dedicated art exists for either site yet (concept-art generation via
+`tools/gen-art.mjs` was suggested in the prior handoff but **not done this session** —
+it costs real API spend and this pass treated the data/mission authoring as the
+priority; still open for whoever does the Unity-side layout pass). Placeholder
+skybox/ground textures reuse existing files the same way `space.data.js` already
+does (`alien_sky` for both; `arctic_ground` tinted steel-blue for `ocean`,
+`ground.type: "procedural"` — no textureUrl — for `grid`'s abstract lattice floor,
+tinted amber toward CREON's signal colour). `ocean`'s `perimeter`/`flatZoneRadius` are
+tighter than every ground-based site (58 vs. 80-88) as the "platform, not open field"
+read; `sceneAssets` on both reuse the existing 14 GLBs (no new models) — `ocean` favors
+`guard_tower`/`wall_segment`/`rusted_beam`/`barricade`, `grid` adds `factory_chimney`
+for a data-spire read.
+
+**Data-only, per the standing P1.9 scope rule** — no `src/` changes, no
+`gen-pages.mjs` run, no `play/ocean/` or `play/grid/` page. `node
+tools/gen-pages.mjs --check` still exits 0 (unaffected, confirmed). **Verified:**
+`node tools/validate-data.mjs` → `ok` (both scenes' `waveSet`s resolve, `grid`'s
+`implemented:true` site now resolves to a real scene file, both missions' `node`s
+resolve, `m401`'s `finale` block still present). `node tools/data-to-json.mjs`
+regenerated (+3 new files: `scenes/ocean.json`, `scenes/grid.json`,
+`waves/ocean_air.json`, `missions/m203.json`, `campaign.json` refreshed) and
+`--check` exits 0 (29 files total). **Not verified in a browser or Unity** — per
+AGENTS.md/TASKS.md, playability is Unity's job (P2.4+), not this repo's; nothing here
+claims otherwise.
+
+---
+
 **P1.9.2 done (2026-08-17).** `tools/validate-data.mjs` (new, folds in and deletes
 `validate-missions.mjs`): keeps the 11-type objective + `unlockNode` + `finale` checks
 verbatim, adds the cross-file checks risk 11 named — scene `waveSet` → exists in
@@ -508,26 +547,22 @@ not throwaway work.
 
 ## Next session — start here
 
-**Read the scope clarification at the top of "Current state" first** — P1.9.2/P1.9.3
-were rewritten because of it. **P1.9.3 is `data/`-only; do not touch `src/` or
-regenerate pages.**
+**Phase 1.9 is done** (P1.9.1 ghats retirement + jungle opener, P1.9.2 validator +
+per-site waveSets, P1.9.3 `ocean`/`grid` scene+mission data — see the three log
+entries above). All 9 campaign sites now have `implemented: true` scenes;
+`tools/validate-data.mjs` is green.
 
-**P1.9.2 is done** (validator + per-site waveSets, see the log entry above).
-`tools/validate-data.mjs` now exists and is green; run it after any `data/` edit.
+**Start Phase 2 (Unity foundation)** — P2.1 scaffold, then **P2.2 the data
+importer** (moved up from old P3.1, see ROADMAP-V2 §4.6): a fresh Unity repo (not a
+fork — see the repo-split decision above), `data/json/` checked in (~29 files now),
+importer refuses on a `manifest.json` hash mismatch rather than partial-importing.
+Read ROADMAP-V2 §4.6 and the "Repo split + divergence guard decided" note above
+before starting.
 
-**Start P1.9.3 — author `ocean` + `grid` as scene + mission data.** Take the user up
-on **AI concept art for `ocean` and `space`** via `tools/gen-art.mjs` before the
-`ocean` layout pass — a visual target makes it much faster. `ocean` wants a
-drone/flier-heavy `waveSet` (the roadmap suggested name was `ocean_air` — author it
-alongside the scene, following the pattern of the 4 waveSets P1.9.2 just added: no new
-enemy types, express the character with existing roster composition/counts).
-Flip both nodes' `implemented: false → true` in `data/campaign.data.js` once their
-scene files exist — `validate-data.mjs` currently skips the `site` resolution check
-for `implemented: false` nodes precisely so `ocean`/`grid` don't fail it today; once
-flipped, the validator will start requiring their scene files to actually resolve.
-
-**Then Unity (Phase 2), starting with P2.1 scaffold + P2.2 the data importer.**
-Don't start it before P1.9 lands — importing a stale campaign graph means redoing it.
+**Optional, not blocking:** concept art for `ocean`/`space` via `tools/gen-art.mjs`
+was suggested twice now (P1.9.2 and P1.9.3 handoffs) and still not done — costs real
+API spend, so it's the user's call whether to spend it before or during the Unity
+layout pass rather than in this repo.
 
 **Doc fix already applied:** AGENTS.md's "Wavezones" section claimed sector-count copy
 was hand-maintained across 9 pages. P1.9.1 found it is generated by `gen-pages.mjs`
@@ -955,3 +990,15 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   baseline sites (`jungle`/`warzone`/`space`/`mars`) got an explicit `waveSet:
   "classic_10"` too. No `src/` or `play/` touched — `data/`-only per §4.7.
   `validate-data.mjs`, `data-to-json.mjs --check`, `gen-pages.mjs --check` all exit 0.
+- **2026-08-17** — P1.9.3: authored `data/scenes/ocean.data.js` + `data/scenes/
+  grid.data.js` (net-new sites) and `data/waves/ocean_air.data.js` (drone/flier-heavy,
+  §3.1's "no ground approach" lever, no new enemy types). New `data/missions/
+  m203.data.js` (ocean) doubles as the second Grid foreshadow §4.4 wanted — `m401`
+  (grid's scripted-defeat mission, already existed from P0.7) checked against the new
+  scene and still fits, header comment updated to drop the now-resolved TODO. Both
+  nodes flipped `implemented: false → true` in `data/campaign.data.js`. Data-only per
+  the P1.9 scope rule — no `src/`/`play/` touched. Concept art (`tools/gen-art.mjs`)
+  suggested but not spent this session — left for the Unity layout pass. `validate-
+  data.mjs`, `data-to-json.mjs --check` (29 files), `gen-pages.mjs --check` all exit 0.
+  **Phase 1.9 is now complete** — all 9 campaign sites implemented. Next: Phase 2
+  (Unity scaffold + data importer).

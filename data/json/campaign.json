@@ -90,7 +90,7 @@
       "site": "ocean",
       "act": "act03",
       "title": "PACIFIC PLATFORM",
-      "implemented": false,
+      "implemented": true,
       "requires": [
         "urban",
         "arctic"
@@ -125,7 +125,7 @@
       "site": "grid",
       "act": "act04",
       "title": "CREON DATA GRID",
-      "implemented": false,
+      "implemented": true,
       "requires": [
         "alien"
       ],

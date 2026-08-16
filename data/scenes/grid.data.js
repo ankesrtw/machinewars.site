@@ -1,0 +1,260 @@
+/* ═══════════════════════════════════════════════════════════════════
+   grid.data.js — scene config for "CREON DATA GRID" (P1.9.3).
+   ROADMAP-V2 §3 table: non-geographic, the scripted-defeat site
+   (data/missions/m401.data.js already exists and still fits this
+   scene — checked, reused verbatim). No dedicated art exists yet
+   (Unity/art pass, not this task) — `ground.type: "procedural"`
+   (no textureUrl) reads as an abstract lattice floor rather than
+   reusing any real-world ground texture, which would misread a
+   non-geographic site as a physical location. Skybox reuses
+   `alien_sky` (closest "unfamiliar" mood) tinted toward CREON's amber
+   signal colour via `sky.clearColor`/`fogColor`. `waveSet:
+   'classic_10'` — m401 doesn't name a per-site set (this is the
+   scripted-defeat finale, not a roster-variation site per §3.1).
+   Data only — Unity renders this, not the web build (see AGENTS.md
+   "web gameplay is frozen"). Paths are relative to
+   ASSET_BASE/SCENE_MODEL_BASE/SCENE_TEXTURE_BASE, resolved by the
+   src/scenes-data.js loader. See data/README.md for the contract.
+   ═══════════════════════════════════════════════════════════════════ */
+export default {
+    id: "grid",
+    waveSet: "classic_10",
+    name: "CREON DATA GRID",
+    description: "The core. Non-geographic — a lattice of CREON's own architecture, collapsing.",
+    previewGradient: "linear-gradient(135deg, #180f04 0%, #2a1a06 50%, #0a0602 100%)",
+    previewImage: "art/zones/grid.jpg",
+    sky: {
+        type: "equirectangular",
+        textureUrl: "skybox/alien_sky.png",
+        clearColor: [0.12, 0.07, 0.02, 1],
+        fogColor: [0.14, 0.08, 0.02],
+        fogDensity: 0.014,
+        hasLightning: true,
+        creon: {
+            textureUrl: "art/creon-machine-wars.png",
+            tint: [1, 0.75, 0.35],
+            opacity: 0.95,
+            size: 230,
+            distance: 300,
+            elevation: 0.44,
+            azimuth: 3.1,
+            gain: 1.2,
+            gamma: 1,
+            crop: {
+                x: 0.134,
+                y: 0,
+                w: 0.417,
+                h: 0.508,
+            },
+        },
+    },
+    lighting: {
+        ambientIntensity: 0.32,
+        ambientDiffuse: [0.5, 0.35, 0.16],
+        ambientGround: [0.06, 0.03, 0.01],
+        sunIntensity: 0.7,
+        sunDiffuse: [1, 0.62, 0.24],
+        sunSpecular: [0.3, 0.2, 0.08],
+        sunDirection: [-0.25, -1, -0.3],
+        glowIntensity: 0.6,
+    },
+    ground: {
+        type: "procedural",
+        width: 260,
+        height: 260,
+        subdivisions: 90,
+        displacementSeed: 401,
+        displacementScale: 0.3,
+        flatZoneRadius: 34,
+        textureUScale: 12,
+        textureVScale: 12,
+        baseColor: "rgb(26, 18, 10)",
+        fallbackColor: [0.1, 0.07, 0.04],
+        specular: [0.22, 0.14, 0.05],
+        specularPower: 90,
+        slabPositions: [
+            [0, 0],
+            [-12, 8],
+            [14, -6],
+            [-8, -16],
+            [10, 18],
+            [-22, 4],
+        ],
+        slabColor: [0.18, 0.12, 0.05],
+    },
+    perimeter: {
+        halfW: 82,
+        halfD: 82,
+    },
+    gateHalfWidth: 10,
+    wallColor: [0.22, 0.14, 0.06],
+    pillarColor: [0.32, 0.2, 0.08],
+    playerStart: {
+        x: 0,
+        y: 2.2,
+        z: 8,
+    },
+    playerLookAt: {
+        x: 0,
+        y: 2.2,
+        z: 0,
+    },
+    spawn: {
+        arcAngle: 3.455751918948773,
+        radiusMin: 34,
+        radiusMax: 54,
+        direction: -1,
+    },
+    sceneAssets: {
+        wall_segment: {
+            file: "wall_segment.glb",
+            scale: 6,
+            tint: {
+                d: [0.28, 0.18, 0.07],
+                e: [0.35, 0.2, 0.05],
+            },
+            placements: [
+                { x: -16, z: -18, ry: 0 },
+                { x: 18, z: -16, ry: 0.1 },
+                { x: -28, z: -6, ry: 0.5 },
+                { x: 26, z: -4, ry: -0.3 },
+                { x: -8, z: -32, ry: 0.15 },
+                { x: 10, z: -34, ry: -0.1 },
+            ],
+        },
+        rusted_beam: {
+            file: "rusted_beam.glb",
+            scale: 5,
+            tint: {
+                d: [0.32, 0.2, 0.08],
+                e: [0.4, 0.22, 0.05],
+            },
+            placements: [
+                { x: -20, z: -10, ry: 0 },
+                { x: 22, z: -12, ry: 0.6 },
+                { x: -10, z: 14, ry: 1.2 },
+                { x: 12, z: 16, ry: -0.4 },
+                { x: -32, z: 2, ry: 0.9 },
+                { x: 34, z: 4, ry: -0.6 },
+            ],
+        },
+        guard_tower: {
+            file: "guard_tower.glb",
+            scale: 11,
+            tint: {
+                d: [0.24, 0.16, 0.06],
+                e: [0.4, 0.24, 0.06],
+            },
+            placements: [
+                { x: -38, z: -30, ry: 0 },
+                { x: 40, z: -28, ry: 0.3 },
+                { x: -42, z: 18, ry: 0.8 },
+                { x: 44, z: 20, ry: -0.5 },
+            ],
+        },
+        factory_chimney: {
+            file: "factory_chimney.glb",
+            scale: 9,
+            tint: {
+                d: [0.2, 0.13, 0.05],
+                e: [0.3, 0.16, 0.04],
+            },
+            placements: [
+                { x: 0, z: -55, ry: 0 },
+                { x: -30, z: -48, ry: 0.2 },
+                { x: 32, z: -46, ry: -0.2 },
+            ],
+        },
+    },
+    coverBlocks: [
+        [-10, -36, 4, 1.5, 2.5, 0.2],
+        [10, -36, 4, 1.5, 2.5, -0.2],
+        [0, -28, 2, 5, 2, 0],
+        [-18, -20, 5, 2, 3, 0],
+        [16, -18, 3, 3, 2.5, 0.4],
+        [-8, -10, 3, 2, 2, -0.2],
+        [10, -8, 4, 1.5, 3, 0.4],
+        [-26, -6, 3, 3, 2.5, 0],
+        [24, -4, 4, 2, 2.5, -0.3],
+        [-12, 4, 5, 1.5, 2.5, 0.5],
+        [14, 6, 3, 3, 2, 0],
+        [0, 16, 2, 4, 3, 0],
+        [22, 18, 4, 2, 2.5, -0.4],
+        [0, 28, 6, 2, 3, 0],
+    ],
+    coverColors: {
+        light: [0.32, 0.2, 0.08],
+        dark: [0.16, 0.1, 0.04],
+    },
+    cratePositions: [
+        [-8, 2],
+        [12, 5],
+        [-20, -4],
+        [24, -6],
+        [-14, -14],
+        [16, -12],
+    ],
+    barrelPositions: [
+        [-6, -2],
+        [10, 2],
+        [-18, -8],
+        [22, -2],
+        [-12, -26],
+        [14, -24],
+    ],
+    sandbagPositions: [
+        [-4, 6, 0],
+        [6, 8, 0.3],
+        [-18, 3, 0.8],
+        [20, 4, -0.5],
+    ],
+    fenceLines: [
+        { start: [-18, -44], end: [18, -44] },
+        { start: [-38, -18], end: [-38, 14] },
+        { start: [38, -16], end: [38, 16] },
+    ],
+    propColors: {
+        crate: [0.3, 0.19, 0.07],
+        crateDark: [0.2, 0.13, 0.05],
+        barrel: [0.24, 0.15, 0.06],
+        barrelRust: [0.45, 0.24, 0.1],
+        barrelGreen: [0.2, 0.24, 0.1],
+        sandbag: [0.34, 0.22, 0.09],
+        pole: [0.24, 0.15, 0.06],
+        wire: [0.4, 0.24, 0.06],
+    },
+    explosiveBarrelPositions: [
+        [-10, -4],
+        [14, -6],
+        [-22, -16],
+        [26, -12],
+        [-8, -30],
+        [18, -26],
+    ],
+    firePitPositions: [
+        { x: -16, z: -16 },
+        { x: 18, z: -20 },
+    ],
+    vehicleFirePositions: [],
+    smokeColumns: [
+        { x: -30, z: -28 },
+        { x: 26, z: -32 },
+        { x: 0, z: -50 },
+    ],
+    background: {
+        rocketPositions: [],
+        radarPositions: [
+            { x: -72, z: -28, ry: 0.3 },
+            { x: 76, z: -24, ry: -0.5 },
+        ],
+        commPositions: [
+            { x: -65, z: 14, ry: 0 },
+            { x: 68, z: 10, ry: 0 },
+        ],
+        basePositions: [
+            { x: -55, z: 20, ry: 0.1 },
+            { x: 58, z: 18, ry: -0.2 },
+        ],
+        domePositions: [],
+    },
+};

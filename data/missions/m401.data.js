@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════════
-   m401 — CREON DATA GRID. Node: grid (implemented:false — scene does
-   not exist yet, this task only authors the data shape). The
-   scripted-defeat mission: the player WINS the fight, the Grid falls
-   anyway. See ROADMAP-V2 §4.4 for the design rules that keep this
-   from feeling cheap (win the fight given, keep agency during the
-   collapse, no fail screen, foreshadow in ocean/alien debriefs, hub
-   map goes orbital after). Foreshadowed in m301 (alien)'s debrief;
-   ocean's mission does not exist yet (implemented:false) so only one
-   prior foreshadow lands today — the second is TODO once ocean ships.
+   m401 — CREON DATA GRID. Node: grid (P1.9.3: data/scenes/grid.data.js
+   now exists, node flipped implemented:true). The scripted-defeat
+   mission: the player WINS the fight, the Grid falls anyway. See
+   ROADMAP-V2 §4.4 for the design rules that keep this from feeling
+   cheap (win the fight given, keep agency during the collapse, no
+   fail screen, foreshadow in ocean/alien debriefs, hub map goes
+   orbital after). Both prior foreshadows now land: m301 (alien)'s
+   debrief, and m203 (ocean)'s debrief (P1.9.3 — the TODO this header
+   used to flag is resolved).
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: 'm401',

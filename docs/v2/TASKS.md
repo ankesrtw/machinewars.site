@@ -276,7 +276,7 @@ Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§4.7](ROADMAP-V2.md#47-the-webun
   fails** on a deliberately broken reference (test it, then revert); every site names
   a `waveSet` that exists; `data-to-json.mjs --check` exits 0.
 
-- [ ] **P1.9.3 — Author `ocean` + `grid` as scene + mission data** · **M**
+- [x] **P1.9.3 — Author `ocean` + `grid` as scene + mission data** · **M** (2026-08-17)
   Two net-new sites as `data/scenes/<slug>.data.js` + missions, in the same
   JSON-literal style as `warzone`/`jungle`. **Data only — Unity renders these, not the
   web build.** No `gen-pages.mjs`, no `play/<slug>/` page.
