@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: "warzone",
+    waveSet: "classic_10",
     name: "INDUSTRIAL WARZONE",
     description: "Post-industrial compound. Heavy fog, burning wreckage.",
     previewGradient: "linear-gradient(135deg, #1a1510 0%, #3a2510 50%, #0a0a08 100%)",

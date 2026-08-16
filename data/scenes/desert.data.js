@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: "desert",
+    waveSet: "desert_ranged",
     name: "DESERT OUTPOST",
     description: "Harsh sun, sand terrain, makeshift military camp.",
     previewGradient: "linear-gradient(135deg, #3a3018 0%, #5a4820 50%, #2a2010 100%)",

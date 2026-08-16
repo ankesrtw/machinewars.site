@@ -1,5 +1,6 @@
 {
   "id": "alien",
+  "waveSet": "alien_unfamiliar",
   "name": "ALIEN CRASH SITE",
   "description": "Otherworldly terrain. Bioluminescent debris, eerie atmosphere.",
   "previewGradient": "linear-gradient(135deg, #0a1a12 0%, #102820 50%, #051510 100%)",

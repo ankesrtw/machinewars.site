@@ -85,6 +85,45 @@ builds `tools/validate-data.mjs` **first**, then authors the waveSets.
 
 ---
 
+**P1.9.2 done (2026-08-17).** `tools/validate-data.mjs` (new, folds in and deletes
+`validate-missions.mjs`): keeps the 11-type objective + `unlockNode` + `finale` checks
+verbatim, adds the cross-file checks risk 11 named — scene `waveSet` → exists in
+`data/waves/`; wave set `enemies[].type` → exists in `data/enemies.data.js`; campaign
+node `site` → resolves to a `data/scenes/*.data.js` (skipped for `implemented: false`
+nodes — `ocean`/`grid` legitimately have no scene yet, that's P1.9.3); every
+`requires`/`unlocks` target exists; graph acyclicity via a permanent 3-colour DFS
+(previously only ever a throwaway script). **Provably fails**, tested live then
+reverted: a bad `waveSet` on `warzone`, and an injected `requires` cycle
+(`warzone`↔`urban`) both correctly FAIL; both revert to a clean `ok` pass. Authored 4
+new named wave sets expressing ROADMAP-V2 §3.1's per-site variation with the existing
+5-type roster (no new enemy types — those are P7.4, hard-capped, out of scope):
+`desert_ranged` (grunt/heavy only, no drones — reads as longer, heavier engagements),
+`urban_swarm` (scout/drone flooded well past `classic_10`'s pacing, heavy kept rare —
+numbers pressure not tankiness), `arctic_shielded` (heavy-weighted from wave 1 — slow
+tanky pressure standing in for the not-yet-built shield-type), `alien_unfamiliar`
+(drone-heavy — the roster's only `flies`+`zigzag` type, closest existing analogue to
+"moves unlike anything else"). Wired via a plain `waveSet` field on each scene's data
+file: `desert`/`urban`/`arctic`/`alien` get their named set, `jungle`/`warzone`/
+`space`/`mars` get `waveSet: "classic_10"` explicit (was implicit via
+`WaveManager`'s fallback — now every site names one, satisfying the task's "every
+site names a waveSet that exists" done-when literally). `ghats` untouched (retired
+from the campaign, Appendix A artifact, out of scope). **No runtime wiring** — the
+`src/enemies.js`/`WaveManager.waveSet` one-liner is Unity's job (P3.4); the web build
+still always plays `classic_10` regardless of what a scene's data now says, which is
+exactly the drift §4.7 permits.
+
+**Verified:** `node tools/validate-data.mjs` exits 0 (and provably fails/reverts as
+above). `node tools/data-to-json.mjs` regenerated + `--check` clean (26 files, +4 new
+`waves/*.json`, all 9 scene jsons re-emitted with the new `waveSet` field).
+`node tools/gen-pages.mjs --check` exits 0 (unaffected — no `src/`/`play/` touched, per
+the P1.9.2 scope rule). Updated the 3 places that named `validate-missions.mjs` as a
+going-forward reference (`AGENTS.md` ×2, `data/objectives.schema.md`,
+`docs/v2/TASKS.md`'s P1.9.3 done-when) to `validate-data.mjs`; left historical
+mentions in `ROADMAP-V2.md`/`TASKS.md`'s own P1.9.2 spec text alone since those
+describe what P1.9.2 folded in, not current state.
+
+---
+
 **P1.9.1 done (2026-08-17).** `ghats`/`ghats_east` retired from the campaign
 graph; `jungle` is now `startNode`, `implemented: true`, `unlocks: ['warzone',
 'desert']`. `data/scenes/ghats.data.js`, `play/ghats/`, and its import in
@@ -470,31 +509,22 @@ not throwaway work.
 ## Next session — start here
 
 **Read the scope clarification at the top of "Current state" first** — P1.9.2/P1.9.3
-were rewritten because of it. **Both are now `data/`-only tasks; do not touch `src/`
-or regenerate pages.**
+were rewritten because of it. **P1.9.3 is `data/`-only; do not touch `src/` or
+regenerate pages.**
 
-**Start P1.9.2 — validator first, then per-site `waveSet`s** (·M). Two halves, in
-this order:
+**P1.9.2 is done** (validator + per-site waveSets, see the log entry above).
+`tools/validate-data.mjs` now exists and is green; run it after any `data/` edit.
 
-**(a) Build `tools/validate-data.mjs`** — fold in `validate-missions.mjs` and add the
-**cross-file** checks nothing currently does (risk 11): scene `waveSet` → exists in
-`data/waves/`; wave set `enemies[].type` → exists in `data/enemies.data.js`; campaign
-node `scene` → resolves to a `data/scenes/*.data.js`; `requires`/`unlocks` targets
-exist **and the graph is acyclic** (make that permanent — it has only ever been a
-throwaway script). ~60 LOC, zero deps, same conventions as the existing tools.
-**Prove it fails** on a deliberately broken reference before trusting it.
-
-**(b) Then author the waveSets** — a `waveSet` field per scene plus the named sets
-(§3.1): `desert_ranged` (long sightlines), `urban_swarm` (tight lanes), `ocean_air`
-(fliers only). `classic_10` stays default/fallback.
-
-**No runtime wiring** — the `src/enemies.js` one-liner this task used to carry is now
-Unity's job (P3.4), and the web build ignoring `waveSet` is exactly the drift §4.7
-permits. **Verification is the validator, not a browser.**
-
-Then **P1.9.3** (author `ocean` + `grid` as scene + mission data, no pages). Take the
-user up on **AI concept art for `ocean` and `space`** via `tools/gen-art.mjs` before
-the `ocean` layout pass — a visual target makes it much faster.
+**Start P1.9.3 — author `ocean` + `grid` as scene + mission data.** Take the user up
+on **AI concept art for `ocean` and `space`** via `tools/gen-art.mjs` before the
+`ocean` layout pass — a visual target makes it much faster. `ocean` wants a
+drone/flier-heavy `waveSet` (the roadmap suggested name was `ocean_air` — author it
+alongside the scene, following the pattern of the 4 waveSets P1.9.2 just added: no new
+enemy types, express the character with existing roster composition/counts).
+Flip both nodes' `implemented: false → true` in `data/campaign.data.js` once their
+scene files exist — `validate-data.mjs` currently skips the `site` resolution check
+for `implemented: false` nodes precisely so `ocean`/`grid` don't fail it today; once
+flipped, the validator will start requiring their scene files to actually resolve.
 
 **Then Unity (Phase 2), starting with P2.1 scaffold + P2.2 the data importer.**
 Don't start it before P1.9 lands — importing a stale campaign graph means redoing it.
@@ -914,3 +944,14 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   now builds `tools/validate-data.mjs` **first** (folding in `validate-missions.mjs`),
   proves it fails on a broken reference, and only then authors the waveSets. Docs only,
   no code; all three existing checks still exit 0.
+- **2026-08-17** — P1.9.2: `tools/validate-data.mjs` built (folds in and deletes
+  `validate-missions.mjs`), adding the risk-11 cross-file checks — scene `waveSet`,
+  wave-set enemy types, campaign node `site`, `requires`/`unlocks` targets, and graph
+  acyclicity via a permanent 3-colour DFS. Proved it fails on a broken `waveSet` and on
+  an injected `requires` cycle, then reverted both. Authored 4 named waveSets
+  (`desert_ranged`, `urban_swarm`, `arctic_shielded`, `alien_unfamiliar`) expressing
+  §3.1's per-site variation using only the existing 5 enemy types (new types are P7.4,
+  out of scope) and wired them via a `waveSet` field on each scene's data file; the 4
+  baseline sites (`jungle`/`warzone`/`space`/`mars`) got an explicit `waveSet:
+  "classic_10"` too. No `src/` or `play/` touched — `data/`-only per §4.7.
+  `validate-data.mjs`, `data-to-json.mjs --check`, `gen-pages.mjs --check` all exit 0.

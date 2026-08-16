@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: "arctic",
+    waveSet: "arctic_shielded",
     name: "ARCTIC BASE",
     description: "Frozen tundra outpost. Blizzard conditions, icy ground.",
     previewGradient: "linear-gradient(135deg, #0e1820 0%, #182530 50%, #080e14 100%)",

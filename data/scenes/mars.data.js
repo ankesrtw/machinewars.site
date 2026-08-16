@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: "mars",
+    waveSet: "classic_10",
     name: "MARS COLONY RUINS",
     description: "Abandoned colony on the red planet. Dust storms, low visibility.",
     previewGradient: "linear-gradient(135deg, #3a1508 0%, #5a2010 50%, #1a0804 100%)",

@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: "urban",
+    waveSet: "urban_swarm",
     name: "URBAN RUINS",
     description: "Collapsed city blocks. Robot assault on devastated streets.",
     previewGradient: "linear-gradient(135deg, #1a1a1a 0%, #2a2218 50%, #0e0e0e 100%)",

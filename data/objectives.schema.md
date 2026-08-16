@@ -31,5 +31,6 @@ grant on completion of required objectives only.
   task (P0.7) only authors the data shape; nothing runs these objectives until
   that runtime lands (Unity, per §4.6).
 - `type` values are the only field validated against this table by
-  `tools/validate-missions.mjs` (P0.7) — every other field is free-form per
-  type, matching the loose validation the mission author needs at this stage.
+  `tools/validate-data.mjs` (P0.7, folded from `validate-missions.mjs` at
+  P1.9.2) — every other field is free-form per type, matching the loose
+  validation the mission author needs at this stage.

@@ -251,7 +251,7 @@ Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§4.7](ROADMAP-V2.md#47-the-webun
   **Done when:** `node tools/validate-missions.mjs` passes, `data-to-json.mjs --check`
   and `gen-pages.mjs --check` exit 0, and the hub shows `jungle` as the first site.
 
-- [ ] **P1.9.2 — Cross-file validator, then per-site `waveSet`s** · **M**
+- [x] **P1.9.2 — Cross-file validator, then per-site `waveSet`s** · **M** (2026-08-17)
   **Build the validator first — it is what makes the rest of this task safe.**
 
   **(a) `tools/validate-data.mjs`** — generalize `validate-missions.mjs` (fold it in;
@@ -289,7 +289,7 @@ Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§4.7](ROADMAP-V2.md#47-the-webun
   *Generate concept art for `ocean` (and `space`) via `tools/gen-art.mjs` first — a
   visual target makes the layout pass much faster.*
   **Done when:** both scenes satisfy the `data/README.md` contract,
-  `data-to-json.mjs --check` and `validate-missions.mjs` exit 0.
+  `data-to-json.mjs --check` and `validate-data.mjs` exit 0.
   **Playability is proven in Unity (P2.4+), not in a browser.**
 
 ---

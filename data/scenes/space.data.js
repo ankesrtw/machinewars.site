@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: "space",
+    waveSet: "classic_10",
     name: "ORBITAL STATION",
     description: "Derelict battle station. Hard vacuum, hard shadows.",
     previewGradient: "linear-gradient(135deg, #0b0d12 0%, #171b23 50%, #05070a 100%)",

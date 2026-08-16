@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 export default {
     id: "jungle",
+    waveSet: "classic_10",
     name: "JUNGLE OUTPOST",
     description: "Overgrown military base. Dense fog, ambush terrain.",
     previewGradient: "linear-gradient(135deg, #0a1a08 0%, #142810 50%, #061206 100%)",
