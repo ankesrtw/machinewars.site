@@ -359,6 +359,12 @@ img { max-width: 100%; }
     transition: opacity 0.3s, transform 0.3s;
 }
 .lw-zone:hover .lw-zone-go { opacity: 1; transform: translateY(0); }
+.lw-zone-locked { cursor: default; }
+.lw-zone-locked .lw-zone-media { filter: saturate(0.15) brightness(0.4) contrast(1.1) grayscale(0.6); }
+.lw-zone-locked:hover { transform: none; border-color: var(--mw-line); }
+.lw-zone-locked:hover .lw-zone-media { transform: none; filter: saturate(0.15) brightness(0.4) contrast(1.1) grayscale(0.6); }
+.lw-zone-locked .lw-zone-go { color: var(--mw-fg-dim); }
+.lw-zone-final .lw-zone-go { color: var(--mw-ember); }
 
 /* ══ Arsenal — spec rows ══ */
 .lw-specs {
