@@ -8,18 +8,30 @@ state, next task). The older [docs/ROADMAP.md](docs/ROADMAP.md) and per-track
 docs beside it are superseded — kept for historical detail, not the plan to
 follow.
 
-**Web gameplay is frozen.** This repo is now a **content-authoring tool**: the
-web build (`src/`, `play/`, the arenas) exists to let content be written once
-as data and verified by eye in a browser, not to ship new player-facing
-features itself. The actual game ships from a separate Unity project
-(ROADMAP-V2 Phase 2+) that imports `data/` verbatim. **Do not start
-Android/Capacitor packaging or add new gameplay systems (weapons, enemy
-types, mission runtime, etc.) directly in `src/`** — author them as `data/`
-edits instead, per the ROADMAP-V2 Phase 0 schema; runtime for anything new
-belongs in Unity. Fixing bugs in the existing web engine, or work explicitly
-scoped to a `docs/v2/` task (e.g. wiring `ground.type: 'heightmap'` for a new
-GIS site preview), is still in scope — "frozen" means no new web-only
-features, not "unmaintained."
+**Web gameplay is frozen — and `data/` is not.** These freeze differently, and
+conflating them wastes work (see ROADMAP-V2 §4.7):
+
+- **`data/` is live.** It is the authoring source the Unity game imports. New
+  enemies, sites, missions, wave sets and weapons are authored **here**, as data.
+- **The web runtime (`src/`, `play/`, the arenas) is finished as a game.** It
+  shipped and it stays, but it is **not** kept in lockstep with `data/` and **is
+  allowed to drift.**
+
+**So a `data/` edit stops at `data/`:** no `src/` changes, no `tools/gen-pages.mjs`
+run, no new `play/<slug>/` page, no sector-count copy chasing. **If the hub or an
+arena looks stale after a data edit, that is expected drift, not a bug.** New
+sites are proven in Unity, not in a browser. `tools/data-to-json.mjs --check` and
+`tools/validate-missions.mjs` are now the *only* guards on content validity — keep
+them green.
+
+The actual game ships from a separate Unity project (ROADMAP-V2 Phase 2+) that
+imports `data/` verbatim; that is where the game gets larger and more featureful.
+**Do not start Android/Capacitor packaging or add new gameplay systems (weapons,
+enemy types, mission runtime, etc.) directly in `src/`.**
+
+Still in scope on the web side, because "frozen" means no new features rather than
+"unmaintained": **bug fixes and asset/robot-quality improvements** (better GLBs,
+LODs, baked normals — those are needed for Unity anyway).
 
 Machine Wars — a **static, no-build** Three.js wave-survival shooter deployed to Cloudflare Pages. There is **no package.json, no bundler, no tests, no linter**. ES modules run directly in the browser via an inline `<script type="importmap">` that maps `three` / `three/addons/` to self-hosted files in `vendor/three/` (no CDN). Verify changes by opening the site in a browser.
 
@@ -172,8 +184,11 @@ give it a `.jpg` path.
 Eight arenas; `MISSION_ORDER` in `src/scenes-data.js` is the campaign chain and ends on
 `mars`. `space` (ORBITAL STATION) sits second-to-last. **`MISSION_ORDER` drives the hub's
 lock/unlock UI and the `N / M SECTORS CLEARED` counter**, so adding a scene there is what
-makes it appear — but the sector count also appears as hardcoded copy in all 9 HTML pages
-(`8 SECTORS`, the landing hero stat, the story paragraph), which must be updated by hand.
+makes it appear. The sector-count copy across the HTML pages (`N SECTORS`, the landing
+hero stat, the story paragraph) is **generated** — `tools/gen-pages.mjs` derives it from
+`MISSION_ORDER.length` and rewrites every page, so re-run that tool rather than editing
+the numbers by hand. *(This paragraph previously claimed the copy was hand-maintained;
+that was wrong, corrected 2026-08-17.)*
 
 `play/space/index.html` was cloned from `play/arctic/index.html`; its scene config reuses the
 alien skybox and urban ground textures as placeholders. Both are fine to replace when the

@@ -27,6 +27,36 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
+**⚠️ Scope clarification (2026-08-17, after P1.9.1) — read before any `data/` work.**
+The user clarified: **the web game stays as it is.** It is finished as a game; all
+real enhancement — new robots, new sites, bigger systems — happens in the Unity /
+Android build, which will be "much larger and more featureful while keeping the base
+theme intact (shooting etc.)."
+
+**The distinction that matters, now written up as ROADMAP-V2 §4.7:** `data/` and the
+web *runtime* freeze **differently**.
+- **`data/` is live** — it stays the authoring source Unity imports, and new content
+  is authored there (the user chose this over letting Unity own content, keeping one
+  source of truth and Phase 0's payoff).
+- **The web runtime (`src/`, `play/`) is finished and may drift from `data/`.**
+
+**So a `data/` edit now stops at `data/`** — no `src/` changes, no `gen-pages.mjs`,
+no new `play/<slug>/` pages, no sector-count copy. Stale-looking hub = expected
+drift, not a bug. New sites are proven **in Unity**, not in a browser. Still allowed
+web-side: bug fixes and robot/asset quality work (needed for Unity anyway).
+
+**This shrank Phase 1.9.** P1.9.2 was "wire `waveSet` in `src/enemies.js`" → now
+**author waveSets as data**, with the runtime wiring moved to Unity (P3.4). P1.9.3
+was "author two playable web arenas + generate pages" → now **author scene + mission
+data only.** `AGENTS.md`, `TASKS.md` (new standing rule 0), and ROADMAP-V2 §1/§4.7/
+risks 8+10 all updated to match.
+
+**Note on P1.9.1 below:** it predates this rule and did touch `src/scenes-data.js`
+and regenerate all 9 pages. That was correct under the plan as written then and is
+harmless — but **don't repeat that pattern.**
+
+---
+
 **P1.9.1 done (2026-08-17).** `ghats`/`ghats_east` retired from the campaign
 graph; `jungle` is now `startNode`, `implemented: true`, `unlocks: ['warzone',
 'desert']`. `data/scenes/ghats.data.js`, `play/ghats/`, and its import in
@@ -411,29 +441,31 @@ not throwaway work.
 
 ## Next session — start here
 
-**Start P1.9.2 — wire `waveSet` per scene** (·S, web repo). The one-line
-change P0.3 left ready: set `WaveManager.waveSet = sceneConfig.waveSet ||
-'classic_10'` before `startWave()` in `src/main.js`/wherever the scene hands
-off to `WaveManager`. Add an optional `waveSet` field to the scene schema;
-leave every existing scene (including `jungle`) on `classic_10` for now — this
-task is the wiring, not new content. **Done when:** a scene with `waveSet:
-'<other>'` demonstrably plays a different wave composition in the browser, and
-every unmodified scene plays identically to today (there's no second wave set
-yet, so this may mean authoring a throwaway one to prove the wiring, then
-deciding whether to keep or discard it — read the task fresh in `TASKS.md`).
+**Read the scope clarification at the top of "Current state" first** — P1.9.2/P1.9.3
+were rewritten because of it. **Both are now `data/`-only tasks; do not touch `src/`
+or regenerate pages.**
 
-Then **P1.9.3** (author `ocean` + `grid`). The user offered to **generate AI
-concept art for `ocean` and `space`** — worth taking up before the `ocean`
-layout pass, via `tools/gen-art.mjs`.
+**Start P1.9.2 — author per-site `waveSet`s as data** (·S). Add a `waveSet` field to
+each scene's `data/scenes/*.data.js` and author the named sets that give each site its
+own enemy mix and pacing (§3.1) — e.g. `desert_ranged` (long sightlines),
+`urban_swarm` (tight lanes), `ocean_air` (fliers only). `data/waves/<setId>.data.js`
+already supports this and `classic_10` stays the default/fallback.
+**No runtime wiring** — the `src/enemies.js` one-liner this task used to carry is now
+Unity's job (P3.4), and the web build ignoring `waveSet` is exactly the drift §4.7
+permits. **Done when:** every site names a `waveSet` that exists, `data-to-json.mjs
+--check` exits 0, and a throwaway script confirms each set resolves to real enemy
+types (that script is the verification now — not a browser).
 
-**Note for whoever revisits sector-count copy:** it turned out *not* to be
-hand-maintained — `tools/gen-pages.mjs` derives `sectors` from
-`MISSION_ORDER.length` and regexes it into all 9 pages. AGENTS.md's "Wavezones"
-section description of this as hardcoded-by-hand copy is stale as of P1.9.1;
-worth a follow-up doc fix if this trips someone up again.
+Then **P1.9.3** (author `ocean` + `grid` as scene + mission data, no pages). Take the
+user up on **AI concept art for `ocean` and `space`** via `tools/gen-art.mjs` before
+the `ocean` layout pass — a visual target makes it much faster.
 
-**Do not start Unity (Phase 2) until P1.9 lands** — P2.2 is the data importer, and
-importing a stale campaign graph would mean redoing it.
+**Then Unity (Phase 2), starting with P2.1 scaffold + P2.2 the data importer.**
+Don't start it before P1.9 lands — importing a stale campaign graph means redoing it.
+
+**Doc fix already applied:** AGENTS.md's "Wavezones" section claimed sector-count copy
+was hand-maintained across 9 pages. P1.9.1 found it is generated by `gen-pages.mjs`
+from `MISSION_ORDER.length`. Corrected this session.
 
 **Untouched by the re-plan:** `data/`'s content-authoring contract (P0),
 `save.js` v2, the campaign graph *mechanism* (only its node list changes), and the
@@ -797,3 +829,27 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   not chase down the orphan PID): zero console errors, progress reads `0 / 8
   SECTORS CLEARED`, status row reads `8 SECTORS`, scene-card list leads with
   `SECTOR 01 — JUNGLE OUTPOST`, `ghats` absent from the picker.
+- **2026-08-17 (scope clarification)** — User clarified that **the web game stays as
+  it is**: it is finished, and all real enhancement (new robots, sites, systems)
+  happens in the Unity/Android build, which becomes "much larger and more featureful
+  while keeping the base theme intact." Established the distinction the previous
+  re-plan had left ambiguous and which had already caused Phase 1.9 to be misplanned
+  as web work: **`data/` and the web *runtime* freeze differently.** `data/` stays
+  **live** as the authoring source Unity imports (user chose this over Unity owning
+  content, preserving one source of truth and Phase 0's payoff); the web runtime is
+  **finished and may drift from it.** Written up as new **ROADMAP-V2 §4.7** with the
+  operative rule: a `data/` edit stops at `data/` — no `src/` changes, no
+  `gen-pages.mjs`, no new `play/<slug>/` pages, no sector-count chasing; stale hub =
+  expected drift, not a bug; new sites are proven in Unity, not a browser. Bug fixes
+  and robot/asset quality work stay in scope web-side. **Phase 1.9 shrank
+  accordingly:** P1.9.2 went from "wire `waveSet` in `src/enemies.js`" to "author
+  waveSets as data" (runtime wiring moved to Unity P3.4), P1.9.3 from "two playable
+  web arenas + generated pages" to "scene + mission data only." Also updated:
+  ROADMAP-V2 §1 (the web build's GIS-preview role is gone too, per §1.5), risk 8
+  (bit-rot now expected and accepted, not merely tolerated), risk 10 (divergence is
+  now the sharpest risk since the browser no longer checks `data/`; importer failures
+  must be fixed in `data/`, never hand-patched Unity-side); `AGENTS.md`'s frozen
+  paragraph rewritten around the same split; `TASKS.md` gained **standing rule 0** and
+  a scope banner on Phase 1.9. Separately corrected a stale `AGENTS.md` claim that
+  P1.9.1 had disproved: sector-count copy is **generated** by `gen-pages.mjs` from
+  `MISSION_ORDER.length`, not hand-maintained across 9 pages. Docs only, no code.

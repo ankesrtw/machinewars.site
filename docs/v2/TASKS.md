@@ -33,6 +33,14 @@ done, record exactly where it stopped and what is broken.
 
 ## Standing rules (apply to every task)
 
+0. **The web build is finished as a game; `data/` is still live.** All real growth —
+   new robots, sites, weapons, systems — happens in Unity. `data/` remains the
+   authoring source Unity imports, and the **web runtime is allowed to drift from it.**
+   So a `data/` task edits `data/` and stops: **no `src/` changes, no
+   `gen-pages.mjs` run, no new `play/<slug>/` pages, no sector-count copy.** Small
+   web-side fixes (robot models, bugs) are still fine when you actually want them —
+   frozen means "no new features," not "unmaintained." See
+   [§4.7](ROADMAP-V2.md#47-the-webunity-split--what-frozen-actually-means).
 1. **No bundler, no package.json, no TypeScript in this repo.** The no-build property is
    why iteration is fast. Playwright etc. install in the session scratchpad.
 2. **Never hand-edit `play/<slug>/index.html`** — they are generated. Edit
@@ -41,8 +49,9 @@ done, record exactly where it stopped and what is broken.
 4. **Deploy only via `node tools/deploy.mjs`**, never raw wrangler.
 5. **Preserve the `ASSET_BASE` / `import.meta.url` pattern** (`src/scenes-data.js:13`) —
    it is what makes paths work at all three page depths.
-6. After any task touching `src/scenes-data.js`, `src/scenes.js`, or the page template,
-   run `node tools/gen-pages.mjs --check` and open one arena in a browser.
+6. After any task that *does* touch `src/scenes-data.js`, `src/scenes.js`, or the page
+   template, run `node tools/gen-pages.mjs --check` and open one arena in a browser.
+   **Rules 2–6 apply only to web-side work, which is now the exception.**
 
 ---
 
@@ -215,11 +224,22 @@ Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline) *(historical)*
 
 ---
 
-# Phase 1.9 — Roster + campaign graph rework (web repo)
+# Phase 1.9 — Campaign graph rework (`data/` only)
 **Goal:** make `data/` describe the revised 9-site roster before Unity imports it.
-**Small, and it must land before P2.2 (the importer) so Unity never imports a stale
-graph.** Est. 1 week.
-Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§3.1](ROADMAP-V2.md#31-per-site-mechanical-variation--the-rosters-real-requirement)
+**Must land before P2.2 (the importer) so Unity never imports a stale graph.**
+Est. 1–2 sessions.
+Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§4.7](ROADMAP-V2.md#47-the-webunity-split--what-frozen-actually-means)
+
+> **⚠️ Scope narrowed 2026-08-17 — read [§4.7](ROADMAP-V2.md#47-the-webunity-split--what-frozen-actually-means).**
+> The web build is **finished as a game**; all real growth happens in Unity. `data/`
+> stays **live** (it is the authoring source Unity imports), but the **web runtime is
+> frozen and may drift from it.**
+>
+> **From here on, `data/` edits do not drag the web build along:** no `src/` changes,
+> no `gen-pages.mjs` runs, no new `play/<slug>/` pages, no sector-count copy chasing.
+> If the hub looks odd after a graph edit, **that is expected drift, not a bug.**
+> (P1.9.1 below predates this rule and did regenerate pages — harmless, but don't
+> repeat it.)
 
 - [x] **P1.9.1 — Retire `ghats`/`ghats_east`, promote `jungle` to start node** · **S** (2026-08-17)
   Remove both nodes from `data/campaign.data.js`; add a `jungle` node with
@@ -231,26 +251,32 @@ Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§3.1](ROADMAP-V2.md#31-per-site-
   **Done when:** `node tools/validate-missions.mjs` passes, `data-to-json.mjs --check`
   and `gen-pages.mjs --check` exit 0, and the hub shows `jungle` as the first site.
 
-- [ ] **P1.9.2 — Wire `waveSet` per scene** · **S**
-  The one-line wiring P0.3 left ready: `WaveManager.waveSet = sceneConfig.waveSet ||
-  'classic_10'` before `startWave()`. Add an optional `waveSet` field to the scene
-  schema; leave every existing scene on `classic_10` for now.
-  **This is the highest-leverage unused feature in the codebase** — after it, per-site
-  enemy mix and pacing (§3.1) are pure data.
-  **Done when:** a scene with `waveSet: '<other>'` demonstrably plays a different wave
-  composition in the browser, and every unmodified scene plays identically to today.
+- [ ] **P1.9.2 — Author per-site `waveSet`s as data** · **S**
+  Add a `waveSet` field to each scene's data and author the named sets that give each
+  site its own enemy mix and pacing ([§3.1](ROADMAP-V2.md#31-per-site-mechanical-variation--the-rosters-real-requirement))
+  — e.g. `desert_ranged`, `urban_swarm`, `ocean_air`. `data/waves/<setId>.data.js`
+  already supports this; `classic_10` stays the default and the fallback.
+  **Data only — no runtime wiring here.** The one-line `src/enemies.js` change this
+  task used to carry is now **Unity's** job (P3.4); the web build ignoring `waveSet`
+  is exactly the drift §4.7 permits.
+  **Done when:** every site names a `waveSet` that exists, `data-to-json.mjs --check`
+  exits 0, and a throwaway script confirms each set resolves to real enemy types.
 
-- [ ] **P1.9.3 — Author `ocean` + `grid` scene data** · **M**
-  Two net-new hand-authored arenas, same style as `warzone`/`jungle`.
-  `ocean` — **OCEAN LAUNCH GRID**: a rocket-launch/sea-platform structure over water
+- [ ] **P1.9.3 — Author `ocean` + `grid` as scene + mission data** · **M**
+  Two net-new sites as `data/scenes/<slug>.data.js` + missions, in the same
+  JSON-literal style as `warzone`/`jungle`. **Data only — Unity renders these, not the
+  web build.** No `gen-pages.mjs`, no `play/<slug>/` page.
+  `ocean` — **OCEAN LAUNCH GRID**: rocket-launch/sea-platform structure over water
   (explicitly *not* an oil rig), constrained arena, fall-off-edge danger, and a
-  **drone/flier-heavy `waveSet`** since there is no ground approach (leans on the
-  existing `flies`/`flyHeight` fields). `grid` — **CREON DATA GRID**: non-geographic,
-  the scripted-defeat site. Flip both nodes to `implemented: true`; generate pages via
-  `gen-pages.mjs`; author their missions.
-  *Optional: generate concept art for both via `tools/gen-art.mjs` first — the user
-  offered, and a visual target makes the layout pass much faster.*
-  **Done when:** `/play/ocean/` and `/play/grid/` load and are playable end-to-end.
+  **drone/flier-heavy `waveSet`** since there is no ground approach (uses the existing
+  `flies`/`flyHeight` fields). `grid` — **CREON DATA GRID**: non-geographic, the
+  scripted-defeat site (`m401` already exists — check it still fits).
+  Flip both nodes to `implemented: true`.
+  *Generate concept art for `ocean` (and `space`) via `tools/gen-art.mjs` first — a
+  visual target makes the layout pass much faster.*
+  **Done when:** both scenes satisfy the `data/README.md` contract,
+  `data-to-json.mjs --check` and `validate-missions.mjs` exit 0.
+  **Playability is proven in Unity (P2.4+), not in a browser.**
 
 ---
 

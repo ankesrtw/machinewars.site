@@ -78,8 +78,14 @@ The roadmap's most durable idea survives and is **promoted from principle to har
 > deserializes verbatim.
 
 What changes: this is no longer a discipline applied to a shipping web game. The web
-build is **explicitly a tool, not a product** — it (a) previews GIS terrain cheaply in a
-browser and (b) authors/validates the data files. **Web gameplay is frozen.**
+build is **explicitly a tool, not a product** — it authors and validates the data files.
+**Web gameplay is frozen.**
+
+> **Sharpened 2026-08-17 — see [§4.7](#47-the-webunity-split--what-frozen-actually-means).**
+> "Frozen" applies to the web **runtime**, not to `data/`. `data/` stays live and keeps
+> growing as the authoring source Unity imports; the web build is finished as a game and
+> **may drift from it.** The GIS-preview half of this tool's original job is also gone
+> (§1.5) — previewing terrain in a browser is no longer something anyone needs.
 
 ### Tension worth stating once
 
@@ -320,8 +326,40 @@ Unity reuses this schema verbatim via `JsonUtility`/Newtonsoft to
 
 `tools/data-to-json.mjs` → `data/json/*.json` → a Unity `[MenuItem]` editor importer
 (~200 LOC) producing `SceneConfigSO`, `EnemyTypeSO`, `WaveSetSO`, `WeaponSO`,
-`MissionSO`, `CampaignSO`, and 11 `ObjectiveSO` subclasses. **Write this at Unity step
-2, before any content work** — it is what makes all later content free.
+`MissionSO`, `CampaignSO`, and 11 `ObjectiveSO` subclasses. **Write this as the first
+Unity task, before any content work** — it is what makes all later content free.
+
+### 4.7 The web/Unity split — what "frozen" actually means
+
+**Decided 2026-08-17.** §1 already said web gameplay is frozen. This sharpens it,
+because the earlier phrasing left an ambiguity that cost a task's worth of misplanning:
+**`data/` and the web *runtime* are not the same thing, and they freeze differently.**
+
+| | Status | Meaning |
+|---|---|---|
+| **`data/`** | **Live — keeps growing** | The authoring source Unity imports. New enemies, sites, missions, wave sets, weapons are authored **here**, as data. This is what Phase 0's eight tasks bought. |
+| **Web runtime** (`src/`, `play/`, pages) | **Finished as a game** | It shipped, it works, it stays. It is **not** kept in lockstep with `data/` and **is allowed to drift.** |
+
+**The rule that follows:** a `data/` edit does **not** oblige a web-side change. No
+`gen-pages.mjs` run, no new `play/<slug>/` page, no sector-count copy, no making a new
+site playable in a browser. **If the hub or a page looks stale after a data edit, that
+is expected drift, not a bug.** New sites are proven in Unity, not in the browser.
+
+**Still explicitly allowed on the web side**, because "frozen" means *no new features*,
+not *unmaintained*: bug fixes, and asset/robot-quality improvements (better GLBs, LODs,
+baked normals — Phase 8) that improve the preview and are needed for Unity anyway.
+
+**Where new content goes** — decided with the user, and it is the reason `data/` stays
+live rather than becoming a one-time seed: **new content is authored in `data/` and
+imported**, keeping one source of truth. Genuinely Unity-only concepts (6DOF ship
+handling, anything the web engine cannot express) are still authored as data the web
+build simply ignores. **Unity is where the game becomes larger and more featureful**;
+the base theme — wave-survival shooting, the CREON arc — stays intact.
+
+**The consequence to watch (risk 10):** the web build stops being a check on `data/`'s
+correctness. `tools/data-to-json.mjs --check` and `tools/validate-missions.mjs` become
+the *only* guards on content validity, so **they must stay green** — for anything they
+cannot check, Unity's importer is the next line of defence.
 
 ---
 
@@ -616,15 +654,22 @@ projected work out of the plan.
 7. **Unity is more fun than finishing the data layer** — the old roadmap's stated death
    mode. The Phase 0 gate was the defence and it **held**: `data/` was finished and
    gated before any Unity work started.
-8. **Web repo bit-rot** once gameplay is frozen. Mitigation: only two things must keep
-   passing — `gen-pages.mjs --check`, and "a scene loads in the unmodified engine."
-   Let everything else drift.
+8. **Web repo bit-rot** once gameplay is frozen — and after §4.7 this is **expected and
+   accepted**, not merely tolerated. The web runtime will fall behind `data/` as new
+   sites and enemy types land, and **nobody should spend time re-syncing it.**
+   Mitigation: `data/`'s validity is guarded by `data-to-json.mjs --check` and
+   `validate-missions.mjs` (which must stay green), not by the browser.
 9. **`ocean` is the hardest new site** — platform geometry over water, no ground
    approach, fall-off-edge rules. No longer a *GIS* problem (no bathymetry needed), but
    still the roster's highest-effort row. Its flier-heavy design leans on `flies`/
    `flyHeight`, which already exist.
-10. **Two repos will diverge.** The `data/` export is the contract — give it a `--check`
-    mode that fails when the Unity-side JSON is stale, in `tools/deploy.mjs`'s style.
+10. **Two repos will diverge — now the sharpest risk in the plan**, because §4.7 removes
+    the web build as a correctness check on `data/`. The `data/` export is the whole
+    contract. **Mitigations, all required:** keep `data-to-json.mjs --check` and
+    `validate-missions.mjs` green; give the Unity importer a check mode that fails on
+    stale JSON; and **treat an importer failure as a schema bug to fix in `data/`**, never
+    as something to hand-patch on the Unity side — hand-patching is exactly how the two
+    copies start diverging.
 
 ---
 
