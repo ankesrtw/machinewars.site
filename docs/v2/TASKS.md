@@ -88,7 +88,7 @@ Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
   **Done when:** all 8 arenas load and play identically; `node tools/gen-pages.mjs
   --check` exits 0; `node tools/stamp-assets.mjs` still resolves every page.
 
-- [ ] **P0.5 — Author `data/campaign.data.js` (the graph)** · **M**
+- [x] **P0.5 — Author `data/campaign.data.js` (the graph)** · **M** *(2026-08-17)*
   The 11-node graph from [§3](ROADMAP-V2.md#3-site-roster), with `requires` (AND-list),
   `unlocks` (advisory, for map edges), `act`, `map:{x,y,label}`, plus `outcome:
   'scripted_defeat'` on `grid` and `locked:true` + `lockedReason` on `mars`.
@@ -384,7 +384,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 4 | ⬜ |
+| P0 — Data foundation | 8 | 5 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |

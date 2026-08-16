@@ -27,9 +27,9 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P0 — Data foundation (P0.1–P0.4 done). P1 is paused at P1.4 (P1.1–P1.4
+**Phase:** P0 — Data foundation (P0.1–P0.5 done). P1 is paused at P1.4 (P1.1–P1.4
 done, P1.5 blocked until the P0 gate passes — see below).
-**Status:** `WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, `WAVE_CONFIGS`, and now
+**Status:** `WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, `WAVE_CONFIGS`, and
 `SCENE_CONFIGS` are all externalized. `data/enemies.data.js` holds the full per-type
 enemy definitions (hp/speed/damage/etc.) with `score` folded in as one more field per
 type — no separate lookup. `data/waves/classic_10.data.js` holds the original 10-wave
@@ -43,7 +43,14 @@ that needed absolute-URL resolution — `textureUrl`/`sceneAssets[].file` stay r
 resolved later by `src/scenes.js`), and re-exports the same
 `SCENE_CONFIGS`/`DEFAULT_SCENE`/`MISSION_ORDER`/`SCENE_MODEL_BASE`/`SCENE_TEXTURE_BASE`/
 `ASSET_BASE` surface it always did.
-**Last commit:** (this session) P0.4 externalize `SCENE_CONFIGS` → `data/scenes/*.data.js` ×8.
+`data/campaign.data.js` now holds the 11-node campaign graph (§4.2) — `ghats`,
+`ghats_east`, `warzone`, `desert`, `urban`, `arctic`, `ocean`, `alien`, `grid`, `space`,
+`mars` — each with `requires`/`unlocks`/`act`/`map:{x,y,label}`, plus `implemented:false`
+on the 4 sites with no `data/scenes/` entry yet (`ghats`, `ghats_east`, `ocean`, `grid`),
+`outcome:'scripted_defeat'` on `grid`, and `locked:true`+`lockedReason` on `mars`. This is
+authored data only — nothing in `src/` reads it yet; `MISSION_ORDER` in `src/scenes-data.js`
+is untouched and still drives the hub. Wiring `save.js`/the hub to the graph is P0.6.
+**Last commit:** (this session) P0.5 author `data/campaign.data.js`.
 
 P1's heightmap ground engine code (`_buildHeightmapGround()` in `src/scenes.js`, P1.4)
 still exists and is still **unwired and unverified in the browser** — no scene config sets
@@ -207,12 +214,28 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.5** (see `docs/v2/TASKS.md` Phase 0) — author `data/campaign.data.js`, the
-11-node campaign graph. P0.4 is done; `data/scenes/` now holds all 8 implemented arenas
-plus is the natural place to add a `ghats.data.js` stub once P0.5 authors that node.
+**Task: P0.6** (see `docs/v2/TASKS.md` Phase 0) — `save.js` v2: add a v1→v2 migration
+(current code discards on version mismatch — would wipe real progress), add
+`progress.nodesUnlocked`/`nodesCompleted`/`currentNode` reading `data/campaign.data.js`,
+replace `unlockNext()` with `completeNode(nodeId)` that unions in every node whose
+`requires` are now satisfied (keep `unlockNext` as a shim for `src/main.js:1195`), rename
+`UNLOCK_ALL_ARENAS` → `UNLOCK_ALL_NODES` (left on for authoring). Test both a hand-seeded
+v1 blob migrating with unlocks preserved, and completing `urban` then `arctic` unlocking
+`ocean` (AND-gate) and nothing earlier.
 
-Then continue down Phase 0 in order: P0.6 (save v2 migration) → P0.7 (missions) →
-P0.8 (docs).
+Then continue down Phase 0 in order: P0.7 (missions) → P0.8 (docs) → **GATE P0**.
+
+### P0.5 note for whoever writes P0.6
+
+`data/campaign.data.js` graph validated with a throwaway Node script (no cycles, all
+`requires`/`unlocks` targets exist, `ocean`'s AND-gate correctly stays locked with only
+`urban` complete and unlocks with `urban`+`arctic`) — script was deleted after, not
+committed; re-derive it if P0.6 needs the same checks wired into a real tool. `act`
+values are `act01`..`act06` (six acts, not one per node — `ghats`/`ghats_east` share
+`act01`, `warzone`/`desert` share `act02`, `urban`/`arctic`/`ocean` share `act03`,
+`alien`/`grid` share `act04`) — matches the roadmap's narrative-act framing, not a
+per-site enum. `map:{x,y,label}` coordinates are placeholders (rough 0..1 layout guesses,
+not derived from anything) — P4.1 (hub map UI) is free to override them wholesale.
 
 ### P0.4 note for whoever writes `ghats.data.js` (P0.5/P1.5)
 
@@ -350,3 +373,14 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   minutes per wave with no dev fast-forward available); confidence instead comes from
   every wave's config matching byte-for-byte plus wave 1's actual spawn behavior
   confirming the wiring executes correctly, not just that the data is well-formed.
+- **2026-08-17** — P0.5: `data/campaign.data.js` — the 11-node campaign graph from
+  ROADMAP-V2 §4.2/§3 (ghats → ghats_east → {warzone, desert} → {urban, arctic} → ocean
+  [AND-gate] → alien → grid [scripted defeat] → space → mars [locked]). `implemented:false`
+  on the 4 sites with no `data/scenes/` slot yet (ghats, ghats_east, ocean, grid); the 7
+  existing arenas (warzone/desert/urban/arctic/alien/space/mars) marked `implemented:true`.
+  Verified with a throwaway Node script: no cycles, every `requires`/`unlocks` target
+  resolves, and the `ocean` AND-gate behaves correctly (locked with only `urban` complete,
+  unlocks with `urban`+`arctic`) — script deleted after, not committed. `node
+  tools/data-to-json.mjs` and `--check` both pass (new `data/json/campaign.json`
+  generated and round-trips clean); `gen-pages.mjs --check` unaffected (still 0, this task
+  didn't touch scenes). Nothing in `src/` consumes the graph yet — that's P0.6.
