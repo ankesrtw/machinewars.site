@@ -51,6 +51,7 @@ body {
 }
 .aw-header-left { display: flex; align-items: center; gap: 10px; font-size: 11px; letter-spacing: 0.08em; min-width: 0; }
 .aw-header-logo { height: 26px; display: block; }
+.aw-header-logo-link { display: flex; align-items: center; line-height: 0; }
 .aw-header-title { color: var(--mw-fg); font-weight: bold; letter-spacing: 0.16em; white-space: nowrap; }
 .aw-header-badge {
     background: var(--mw-amber); color: #14100a; font-size: 9px; font-weight: bold;
