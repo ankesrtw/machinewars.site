@@ -77,7 +77,7 @@ Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
   **Done when:** a full 10-wave run completes with identical spawn composition to today,
   boss on wave 10.
 
-- [ ] **P0.4 — Externalize `SCENE_CONFIGS` → `data/scenes/<slug>.data.js` ×8** · **L**
+- [x] **P0.4 — Externalize `SCENE_CONFIGS` → `data/scenes/<slug>.data.js` ×8** · **L** *(2026-08-17)*
   The big one — 1,501 LOC. `src/scenes-data.js` becomes a thin loader that imports the 8
   files, merges them, and applies the existing `ASSET_BASE` resolution.
   **Keep every current export** (`SCENE_CONFIGS`, `DEFAULT_SCENE`, `MISSION_ORDER`,
@@ -384,7 +384,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 3 | ⬜ |
+| P0 — Data foundation | 8 | 4 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |

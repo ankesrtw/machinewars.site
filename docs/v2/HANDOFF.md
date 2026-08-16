@@ -27,17 +27,23 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P0 — Data foundation (P0.1, P0.2, P0.3 done). P1 is paused at P1.4 (P1.1–P1.4
+**Phase:** P0 — Data foundation (P0.1–P0.4 done). P1 is paused at P1.4 (P1.1–P1.4
 done, P1.5 blocked until the P0 gate passes — see below).
-**Status:** `WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, and `WAVE_CONFIGS` are all
-externalized. `data/enemies.data.js` now holds the full per-type enemy definitions
-(hp/speed/damage/etc.) with `score` folded in as one more field per type — no separate
-lookup. `data/waves/classic_10.data.js` holds the original 10-wave array; `WaveManager`
-gained a `waveSet` field (defaults `'classic_10'`) and a `getWaveConfig(n)` method that
-looks it up from a `WAVE_SETS` map in `src/enemies.js` — this is the seam P0.7/Unity or a
-future difficulty mode would add a second named set through, no caller changes needed.
-`SCENE_CONFIGS` is still in `src/`, untouched — that's P0.4.
-**Last commit:** (this session) P0.3 externalize `ENEMY_TYPES` + `WAVE_CONFIGS`.
+**Status:** `WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, `WAVE_CONFIGS`, and now
+`SCENE_CONFIGS` are all externalized. `data/enemies.data.js` holds the full per-type
+enemy definitions (hp/speed/damage/etc.) with `score` folded in as one more field per
+type — no separate lookup. `data/waves/classic_10.data.js` holds the original 10-wave
+array; `WaveManager` gained a `waveSet` field (defaults `'classic_10'`) and a
+`getWaveConfig(n)` method that looks it up from a `WAVE_SETS` map in `src/enemies.js`.
+`data/scenes/<slug>.data.js` ×8 (warzone, space, mars, alien, desert, urban, jungle,
+arctic) hold the full per-arena config (sky/lighting/ground/perimeter/spawn/sceneAssets/
+coverBlocks/props/background) as JSON-literals; `src/scenes-data.js` is now a ~55-line
+loader that imports all 8, resolves `previewImage` against `ASSET_BASE` (the only field
+that needed absolute-URL resolution — `textureUrl`/`sceneAssets[].file` stay relative,
+resolved later by `src/scenes.js`), and re-exports the same
+`SCENE_CONFIGS`/`DEFAULT_SCENE`/`MISSION_ORDER`/`SCENE_MODEL_BASE`/`SCENE_TEXTURE_BASE`/
+`ASSET_BASE` surface it always did.
+**Last commit:** (this session) P0.4 externalize `SCENE_CONFIGS` → `data/scenes/*.data.js` ×8.
 
 P1's heightmap ground engine code (`_buildHeightmapGround()` in `src/scenes.js`, P1.4)
 still exists and is still **unwired and unverified in the browser** — no scene config sets
@@ -201,28 +207,20 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.4** (see `docs/v2/TASKS.md` Phase 0) — externalize `SCENE_CONFIGS` →
-`data/scenes/<slug>.data.js` ×8. **The big one — 1,501 LOC.** This is what unblocks
-resuming P1.5/`ghats` (P1's paused heightmap-ground work has been waiting on this since
-2026-08-17).
+**Task: P0.5** (see `docs/v2/TASKS.md` Phase 0) — author `data/campaign.data.js`, the
+11-node campaign graph. P0.4 is done; `data/scenes/` now holds all 8 implemented arenas
+plus is the natural place to add a `ghats.data.js` stub once P0.5 authors that node.
 
-1. `src/scenes-data.js` becomes a thin loader that imports the 8 per-arena files, merges
-   them, and applies the existing `ASSET_BASE` resolution — **keep every current export**
-   (`SCENE_CONFIGS`, `DEFAULT_SCENE`, `MISSION_ORDER`, `SCENE_MODEL_BASE`,
-   `SCENE_TEXTURE_BASE`, `ASSET_BASE`). Consumers: `src/scenes.js:8`, `src/save.js:9`,
-   `tools/gen-pages.mjs:31`, `tools/stamp-assets.mjs:26`; `src/scenes.js` re-exports to
-   `src/main.js:12`.
-2. Split **one arena first**, verify it loads and plays identically, then batch the
-   remaining seven — don't do all 8 blind before the first browser check.
-3. Per this task's own note: the split should produce a `data/scenes/ghats.data.js` slot
-   even though `ghats` isn't playable yet (`implemented:false`, P0.5's job) — that's
-   where P1.5 lands instead of hand-editing `scenes-data.js`.
-4. Verify: all 8 arenas load and play identically in-browser; `node tools/gen-pages.mjs
-   --check` exits 0; `node tools/stamp-assets.mjs` still resolves every page.
-5. Commit, tick P0.4, update this file.
+Then continue down Phase 0 in order: P0.6 (save v2 migration) → P0.7 (missions) →
+P0.8 (docs).
 
-Then continue down Phase 0 in order: P0.5 (campaign graph) → P0.6 (save v2 migration) →
-P0.7 (missions) → P0.8 (docs).
+### P0.4 note for whoever writes `ghats.data.js` (P0.5/P1.5)
+
+`data/scenes/` didn't get a `ghats.data.js` slot in P0.4 itself — P0.4 only split the 8
+arenas that already existed in the old `SCENE_CONFIGS`. `ghats` doesn't exist as a scene
+config yet; it's P0.5's job to add the graph node (`implemented:false`), and P1.5's job
+to `emit-scene.mjs` a real `data/scenes/ghats.data.js` once P1.4's heightmap ground code
+gets its first live render. Nothing about the P0.4 split changes that plan.
 
 ### P0.3 wiring note for whoever touches enemies.js next
 
@@ -312,6 +310,32 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   score-increment-on-kill was verified by static derivation check instead (`SCORE_VALUES`
   computed from the new file matches the original literal exactly) plus reading
   `addScore()` — no behavior change there, only where `SCORE_VALUES` comes from.
+- **2026-08-17** — P0.4: `SCENE_CONFIGS` (1,501 LOC) split into `data/scenes/<slug>.data.js`
+  ×8 (warzone, space, mars, alien, desert, urban, jungle, arctic), one `export default`
+  JSON-literal per arena. Used a throwaway extraction script (imported the live
+  `SCENE_CONFIGS`, walked it to a literal-syntax string, wrote each file, deleted the
+  script after) rather than hand-copying 1,500 lines — lower risk of transcription
+  errors. `previewImage` was the only field that needed un-resolving back to an
+  `ASSET_BASE`-relative path (it was the sole field pre-resolved to an absolute URL in
+  the old inline object; `textureUrl`/`sceneAssets[].file` were already relative,
+  unchanged). `spawn.arcAngle`'s `Math.PI * 1.1`-style expressions bake to plain float
+  literals in the data files — contract-compliant, and `src/enemies.js` only ever reads
+  `arcAngle` as a number so this is not a behavior change. `src/scenes-data.js` is now a
+  ~55-line loader: imports the 8 files, resolves `previewImage`, re-exports the exact
+  same surface. **Verified byte-identical**: a structural diff of the old file's live
+  `SCENE_CONFIGS` against the new loader's merged output matched on every field except
+  `previewImage`'s absolute URL prefix (an artifact of the verification script's own file
+  location changing `import.meta.url`, not a real difference — confirmed by checking the
+  relative-path suffix matched). `gen-pages.mjs --check` exits 0, `data-to-json.mjs`
+  round-trips (new `data/json/scenes/*.json` written and re-checked clean),
+  `stamp-assets.mjs --dry-run` resolves all 9 pages. Live-verified in-browser via a
+  subagent driving real Chrome through Playwright: warzone/space/mars/alien all boot,
+  start, reach `'playing'`, zero console errors, and `AWDebug.world.cfg` shows correct
+  per-arena data (ground type, spawn config, sceneAssets count, name) for each. Did not
+  re-verify all 8 in-browser (4 of 8, spanning `procedural`/`texture` ground types and
+  different sceneAssets counts, was enough given the structural diff already proved
+  byte-identical data). No `ghats.data.js` added — P0.4 only covers the 8 arenas that
+  existed in the old `SCENE_CONFIGS`; adding `ghats` is P0.5/P1.5's job.
 - **2026-08-17** — P0.3: `ENEMY_TYPES` folded into `data/enemies.data.js` alongside the
   `score` field added in P0.2 (one object per type, not two lookups). `WAVE_CONFIGS` →
   `data/waves/classic_10.data.js`, byte-identical to the original array (diffed via

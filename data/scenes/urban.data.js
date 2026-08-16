@@ -1,0 +1,542 @@
+/* ═══════════════════════════════════════════════════════════════════
+   urban.data.js — scene config for "URBAN RUINS".
+   Externalized from src/scenes-data.js SCENE_CONFIGS (P0.4). Paths
+   (previewImage/textureUrl/sceneAssets[].file) are relative to
+   ASSET_BASE/SCENE_MODEL_BASE/SCENE_TEXTURE_BASE, resolved by the
+   src/scenes-data.js loader — not absolute here. See data/README.md.
+   ═══════════════════════════════════════════════════════════════════ */
+export default {
+    id: "urban",
+    name: "URBAN RUINS",
+    description: "Collapsed city blocks. Robot assault on devastated streets.",
+    previewGradient: "linear-gradient(135deg, #1a1a1a 0%, #2a2218 50%, #0e0e0e 100%)",
+    previewImage: "art/zones/urban.jpg",
+    sky: {
+        type: "equirectangular",
+        textureUrl: "skybox/urban_sky.png",
+        clearColor: [0.14, 0.13, 0.12, 1],
+        fogColor: [0.14, 0.13, 0.12],
+        fogDensity: 0.009,
+        hasLightning: true,
+        creon: {
+            textureUrl: "art/creon-machine-wars.png",
+            tint: [0.95, 0.85, 0.8],
+            opacity: 0.86,
+            size: 213,
+            distance: 300,
+            elevation: 0.38,
+            azimuth: 3.3,
+            crop: {
+                x: 0.134,
+                y: 0,
+                w: 0.417,
+                h: 0.508,
+            },
+        },
+    },
+    lighting: {
+        ambientIntensity: 0.3,
+        ambientDiffuse: [0.45, 0.42, 0.38],
+        ambientGround: [0.1, 0.09, 0.08],
+        sunIntensity: 0.5,
+        sunDiffuse: [0.55, 0.5, 0.44],
+        sunSpecular: [0.08, 0.07, 0.06],
+        sunDirection: [-0.4, -1, -0.3],
+        glowIntensity: 0.35,
+    },
+    ground: {
+        type: "texture",
+        textureUrl: "ground/urban_ground.png",
+        width: 320,
+        height: 320,
+        subdivisions: 110,
+        displacementSeed: 55,
+        displacementScale: 1.2,
+        flatZoneRadius: 26,
+        textureUScale: 10,
+        textureVScale: 10,
+        baseColor: "rgb(60, 55, 48)",
+        fallbackColor: [0.24, 0.22, 0.19],
+        specular: [0.08, 0.07, 0.06],
+        specularPower: 28,
+        slabPositions: [
+            [0, 0],
+            [-14, 8],
+            [16, -6],
+            [-8, -15],
+            [10, 18],
+            [-22, 5],
+            [24, -14],
+            [6, -22],
+            [-18, -20],
+            [20, 16],
+        ],
+        slabColor: [0.3, 0.27, 0.22],
+    },
+    perimeter: {
+        halfW: 88,
+        halfD: 88,
+    },
+    gateHalfWidth: 9,
+    wallColor: [0.22, 0.2, 0.17],
+    pillarColor: [0.28, 0.24, 0.2],
+    playerStart: {
+        x: 0,
+        y: 2.2,
+        z: 8,
+    },
+    playerLookAt: {
+        x: 0,
+        y: 2.2,
+        z: 0,
+    },
+    spawn: {
+        arcAngle: 3.7699111843077517,
+        radiusMin: 36,
+        radiusMax: 56,
+        direction: -1,
+    },
+    sceneAssets: {
+        factory_ruin: {
+            file: "factory_ruin.glb",
+            scale: 16,
+            tint: {
+                d: [0.35, 0.3, 0.25],
+                e: [0.04, 0.02, 0],
+            },
+            placements: [
+                {
+                    x: -40,
+                    z: -38,
+                    ry: 0,
+                },
+                {
+                    x: 42,
+                    z: -36,
+                    ry: 0.2,
+                },
+                {
+                    x: -8,
+                    z: -62,
+                    ry: 0,
+                },
+                {
+                    x: 58,
+                    z: -52,
+                    ry: 0.6,
+                },
+                {
+                    x: -62,
+                    z: -58,
+                    ry: 0.4,
+                },
+            ],
+        },
+        warehouse_ruin: {
+            file: "warehouse_ruin.glb",
+            scale: 14,
+            tint: {
+                d: [0.32, 0.28, 0.22],
+                e: [0.03, 0.01, 0],
+            },
+            placements: [
+                {
+                    x: -32,
+                    z: -14,
+                    ry: 0.1,
+                },
+                {
+                    x: 34,
+                    z: -12,
+                    ry: -0.2,
+                },
+                {
+                    x: -55,
+                    z: -32,
+                    ry: 0.8,
+                },
+                {
+                    x: 52,
+                    z: -28,
+                    ry: -0.6,
+                },
+            ],
+        },
+        rubble_pile: {
+            file: "rubble_pile.glb",
+            scale: 5.5,
+            tint: {
+                d: [0.3, 0.26, 0.2],
+                e: [0.02, 0.01, 0],
+            },
+            placements: [
+                {
+                    x: -10,
+                    z: -12,
+                    ry: 0,
+                },
+                {
+                    x: 10,
+                    z: -16,
+                    ry: 0.5,
+                },
+                {
+                    x: -22,
+                    z: -26,
+                    ry: 1,
+                },
+                {
+                    x: 24,
+                    z: -20,
+                    ry: 0.3,
+                },
+                {
+                    x: -5,
+                    z: -8,
+                    ry: 0.8,
+                },
+                {
+                    x: 18,
+                    z: -5,
+                    ry: 1.5,
+                },
+                {
+                    x: -32,
+                    z: -30,
+                    ry: 0.2,
+                },
+                {
+                    x: 12,
+                    z: -36,
+                    ry: 0.6,
+                },
+            ],
+        },
+        burned_car: {
+            file: "burned_car.glb",
+            scale: 5,
+            tint: {
+                d: [0.28, 0.24, 0.18],
+                e: [0.05, 0.02, 0],
+            },
+            placements: [
+                {
+                    x: -8,
+                    z: -6,
+                    ry: 0.4,
+                },
+                {
+                    x: 12,
+                    z: -10,
+                    ry: -0.6,
+                },
+                {
+                    x: -26,
+                    z: -16,
+                    ry: 1.9,
+                },
+                {
+                    x: 28,
+                    z: -22,
+                    ry: -1.2,
+                },
+                {
+                    x: -18,
+                    z: 5,
+                    ry: 0.8,
+                },
+                {
+                    x: 20,
+                    z: 8,
+                    ry: -0.3,
+                },
+            ],
+        },
+        burned_truck: {
+            file: "burned_truck.glb",
+            scale: 6,
+            tint: {
+                d: [0.28, 0.22, 0.16],
+                e: [0.04, 0.02, 0],
+            },
+            placements: [
+                {
+                    x: -12,
+                    z: -22,
+                    ry: 0.5,
+                },
+                {
+                    x: 22,
+                    z: -28,
+                    ry: -0.8,
+                },
+                {
+                    x: 0,
+                    z: -42,
+                    ry: 0.2,
+                },
+            ],
+        },
+        destroyed_apc: {
+            file: "destroyed_apc.glb",
+            scale: 7,
+            tint: {
+                d: [0.3, 0.26, 0.2],
+                e: [0.03, 0.02, 0],
+            },
+            placements: [
+                {
+                    x: -16,
+                    z: -28,
+                    ry: 0.5,
+                },
+                {
+                    x: 26,
+                    z: -32,
+                    ry: -0.7,
+                },
+                {
+                    x: 5,
+                    z: -18,
+                    ry: 0.1,
+                },
+            ],
+        },
+        barricade: {
+            file: "barricade.glb",
+            scale: 4.5,
+            tint: {
+                d: [0.32, 0.28, 0.22],
+                e: [0.02, 0.01, 0],
+            },
+            placements: [
+                {
+                    x: -6,
+                    z: -4,
+                    ry: 0,
+                },
+                {
+                    x: 8,
+                    z: -2,
+                    ry: 0.2,
+                },
+                {
+                    x: -14,
+                    z: 3,
+                    ry: 0.6,
+                },
+                {
+                    x: 16,
+                    z: 5,
+                    ry: -0.4,
+                },
+                {
+                    x: -22,
+                    z: -10,
+                    ry: 1,
+                },
+                {
+                    x: 24,
+                    z: -8,
+                    ry: -0.7,
+                },
+            ],
+        },
+    },
+    coverBlocks: [
+        [-10, -36, 4, 1.5, 2.5, 0.2],
+        [10, -36, 4, 1.5, 2.5, -0.2],
+        [0, -28, 2, 5, 2, 0],
+        [-18, -20, 5, 2, 3, 0],
+        [16, -18, 3, 3, 2.5, 0.4],
+        [-8, -10, 3, 2, 2, -0.2],
+        [10, -8, 4, 1.5, 3, 0.4],
+        [-26, -6, 3, 3, 2.5, 0],
+        [24, -4, 4, 2, 2.5, -0.3],
+        [-12, 4, 5, 1.5, 2.5, 0.5],
+        [14, 6, 3, 3, 2, 0],
+        [-5, 14, 2, 4, 3, 0],
+        [22, 16, 4, 2, 2.5, -0.4],
+        [0, 26, 6, 2, 3, 0],
+        [-16, 32, 4, 2, 2.5, 0.5],
+        [18, 34, 3, 3, 2, -0.2],
+    ],
+    coverColors: {
+        light: [0.35, 0.3, 0.24],
+        dark: [0.22, 0.18, 0.14],
+    },
+    cratePositions: [
+        [-8, 2],
+        [12, 5],
+        [-20, -4],
+        [24, -6],
+        [-14, -14],
+        [16, -12],
+        [-30, 2],
+        [34, 4],
+        [-5, -26],
+        [8, -30],
+    ],
+    barrelPositions: [
+        [-6, -2],
+        [10, 2],
+        [-18, -8],
+        [22, -2],
+        [-12, -26],
+        [14, -24],
+        [-28, -14],
+        [30, -12],
+        [-8, -36],
+        [10, -38],
+    ],
+    sandbagPositions: [
+        [-4, 6, 0],
+        [6, 8, 0.3],
+        [-18, 3, 0.8],
+        [20, 4, -0.5],
+        [-10, -5, 1],
+        [12, -3, -0.7],
+        [-24, 10, 0.4],
+        [26, 12, -0.3],
+    ],
+    fenceLines: [
+        {
+            start: [-15, -45],
+            end: [15, -45],
+        },
+        {
+            start: [-35, -20],
+            end: [-35, 10],
+        },
+        {
+            start: [35, -18],
+            end: [35, 12],
+        },
+    ],
+    propColors: {
+        crate: [0.32, 0.28, 0.22],
+        crateDark: [0.22, 0.18, 0.14],
+        barrel: [0.28, 0.24, 0.18],
+        barrelRust: [0.4, 0.22, 0.1],
+        barrelGreen: [0.18, 0.22, 0.14],
+        sandbag: [0.38, 0.32, 0.24],
+        pole: [0.28, 0.24, 0.18],
+        wire: [0.3, 0.24, 0.16],
+    },
+    explosiveBarrelPositions: [
+        [-10, -4],
+        [14, -6],
+        [-22, -16],
+        [26, -12],
+        [-8, -30],
+        [18, -26],
+        [-16, 6],
+        [20, 10],
+        [-28, -22],
+        [32, -36],
+        [-40, -10],
+        [38, -8],
+        [5, -50],
+        [-5, 18],
+    ],
+    firePitPositions: [
+        {
+            x: -18,
+            z: -18,
+        },
+        {
+            x: 20,
+            z: -22,
+        },
+        {
+            x: 0,
+            z: -35,
+        },
+        {
+            x: -32,
+            z: -5,
+        },
+        {
+            x: 30,
+            z: -8,
+        },
+    ],
+    vehicleFirePositions: [
+        {
+            x: -8,
+            z: -6,
+        },
+        {
+            x: 12,
+            z: -10,
+        },
+        {
+            x: -26,
+            z: -16,
+        },
+    ],
+    smokeColumns: [
+        {
+            x: -30,
+            z: -30,
+        },
+        {
+            x: 28,
+            z: -35,
+        },
+        {
+            x: -5,
+            z: -55,
+        },
+        {
+            x: 42,
+            z: -45,
+        },
+        {
+            x: -48,
+            z: -20,
+        },
+    ],
+    background: {
+        rocketPositions: [],
+        radarPositions: [
+            {
+                x: -72,
+                z: -28,
+                ry: 0.3,
+            },
+            {
+                x: 75,
+                z: -24,
+                ry: -0.5,
+            },
+        ],
+        commPositions: [
+            {
+                x: -62,
+                z: 14,
+            },
+            {
+                x: 65,
+                z: 10,
+            },
+            {
+                x: 0,
+                z: -88,
+            },
+        ],
+        basePositions: [
+            {
+                x: -52,
+                z: 20,
+                ry: 0.1,
+            },
+            {
+                x: 55,
+                z: 18,
+                ry: -0.2,
+            },
+        ],
+        domePositions: [],
+    },
+};
