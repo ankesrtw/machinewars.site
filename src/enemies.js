@@ -9,12 +9,15 @@
    ═══════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadGLB } from './gltf.js';
 import { SCENE_MODEL_BASE } from './scenes-data.js';
 import { withVersion } from './version.js';
 import { col3 } from './math.js';
 
 const _modelCache = {}; // type -> gltf.scene template
+const _modelAnimCache = {}; // type -> gltf.animations (rigged types only)
+const ANIMATED_TYPES = new Set(['grunt', 'heavy']);
 const ENEMY_UP = new THREE.Vector3(0, 1, 0);
 
 // Procedural robot fallbacks — merged per type so every instance is just
@@ -216,7 +219,12 @@ async function preloadModels() {
         if (_modelCache[t]) continue;
         try {
             const g = await withTimeout(loadGLB(withVersion(SCENE_MODEL_BASE + `${t}.glb`), 'high'), 30000, `${t}.glb`);
+            // Rigging-pipeline artifact present in the combined grunt/heavy
+            // GLBs — not part of the robot, drop it before it's ever cloned.
+            const stray = g.scene.getObjectByName('Icosphere');
+            if (stray) stray.parent.remove(stray);
             _modelCache[t] = g.scene;
+            if (g.animations && g.animations.length) _modelAnimCache[t] = g.animations;
             g.scene.traverse((o) => { if (o.isMesh && o.geometry) _templateGeos.add(o.geometry); });
         } catch (e) { console.warn(`[V2] ${t}.glb load failed — fallback primitives:`, e.message); }
     }
@@ -328,7 +336,10 @@ export class Enemy {
 
         const tpl = _modelCache[this.typeName];
         if (tpl) {
-            const model = tpl.clone(true);
+            // Object3D.clone() doesn't duplicate skinned-mesh bone bindings —
+            // every instance would share (and corrupt) one skeleton. SkeletonUtils
+            // handles both skinned and unskinned models correctly.
+            const model = cloneSkinned(tpl);
             // The GLBs are authored Y-up and gltf.js has already dropped their
             // feet onto y = 0, so no corrective rotation belongs here. The old
             // rotation.y = -PI/2 tipped every robot a quarter turn off its
@@ -345,6 +356,7 @@ export class Enemy {
             // with a flat tint material was what made the real models read as
             // untextured procedural blobs. Tint the existing material instead.
             model.traverse((o) => {
+                if (o.name === 'Icosphere') return; // rigging-pipeline artifact, not part of the robot
                 if (!o.isMesh) return;
                 o.material = o.material.clone();
                 if (o.material.map) o.material.color.lerp(col3(cfg.tintColor), 0.35);
@@ -356,7 +368,22 @@ export class Enemy {
                 this._flashMeshes.push(o);
             });
             root.add(model);
-            if (this.typeName !== 'drone' && this.typeName !== 'boss') this._attachWeapon(root, cfg);
+
+            if (ANIMATED_TYPES.has(this.typeName) && _modelAnimCache[this.typeName]) {
+                // Arms are baked into a static gun-forward pose for the whole
+                // clip, so a floating barrel prop would duplicate/clash with it.
+                //
+                // Select by name, not by index: a GLB that ships more than one
+                // walk action (Blender's `.001` duplicate-suffix) would other-
+                // wise let loader ordering decide which arm pose plays.
+                const clips = _modelAnimCache[this.typeName];
+                const clip = clips.find((c) => c.name === 'preset:walk') || clips[0];
+                this._mixer = new THREE.AnimationMixer(model);
+                this._walkAction = this._mixer.clipAction(clip);
+                this._walkAction.play();
+            } else if (this.typeName !== 'drone' && this.typeName !== 'boss') {
+                this._attachWeapon(root, cfg);
+            }
         } else {
             this._buildFallback(root);
         }
@@ -583,12 +610,17 @@ export class Enemy {
             }
         }
 
+        if (this._mixer) this._mixer.update(dt);
+
         const prevWalk = this._walkT;
         this._walkT += 4.8 * dt;
         if (this.cfg.flies) {
             this.root.position.y = this.cfg.flyHeight + Math.sin(this._walkT * 0.5) * 0.3;
         } else {
-            this.root.position.y = this._climb + Math.abs(Math.sin(this._walkT)) * 0.12;
+            // Animated types (grunt/heavy) get their vertical bob from the real
+            // walk-cycle clip via the mixer — applying this too would double it.
+            // Keep the sine timer running anyway, purely to time footstep SFX.
+            if (!this._mixer) this.root.position.y = this._climb + Math.abs(Math.sin(this._walkT)) * 0.12;
             if (Math.sin(prevWalk) > 0 && Math.sin(this._walkT) <= 0) ctx.audio.playFootstep(dist, this.typeName);
         }
 
@@ -703,6 +735,8 @@ export class Enemy {
 
     dispose() {
         if (this._flashTimer) { clearTimeout(this._flashTimer); this._flashTimer = null; }
+        if (this._mixer) { this._mixer.stopAllAction(); this._mixer.uncacheRoot(this._mixer.getRoot()); this._mixer = null; }
+        this._walkAction = null;
         if (this.eye) { this.root.remove(this.eye); this.eye = null; }
         if (this.root) {
             ctx.scene.remove(this.root);

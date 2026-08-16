@@ -74,11 +74,16 @@ let _lowHpActive = false, _heartbeatPhase = 0;
 let _killStreakCount = 0, _killStreakTimer = 0;
 
 // ── Boot ───────────────────────────────────────────────────────────────
+// initEngine() itself is synchronous (renderer/camera/scene-graph setup);
+// only the scene's GLB props and enemy models stream in afterwards, in the
+// background, while the player reads the deployment terminal (#aw-start,
+// which sits underneath #aw-loading the whole time — see z-index in
+// style.css). There is no reason to gate that screen behind a fake timed
+// progress bar, so boot straight into engine init and drop the loading
+// screen the moment it's actually done.
 window.addEventListener('DOMContentLoaded', () => {
-    animateLoadingBar(() => {
-        try { $('aw-loading').style.display = 'none'; initEngine(); }
-        catch (e) { console.error('Engine init failed:', e); fatalError('Failed to start the 3D environment. Please reload.'); }
-    });
+    try { initEngine(); $('aw-loading').style.display = 'none'; }
+    catch (e) { console.error('Engine init failed:', e); fatalError('Failed to start the 3D environment. Please reload.'); }
 });
 
 const $ = (id) => document.getElementById(id);
@@ -90,19 +95,6 @@ function fatalError(msg) {
     if (sub) { sub.textContent = 'SYSTEM ERROR'; sub.style.color = '#ff5a4d'; }
     if (hint) hint.textContent = msg;
     if (bar) bar.style.display = 'none';
-}
-
-function animateLoadingBar(onComplete) {
-    const fill = $('aw-loading-fill'); let pct = 0;
-    // Without the guard a missing element threw inside the interval every 80ms
-    // forever, and boot never handed control back — the cosmetic bar taking the
-    // whole game down with it. fatalError() above already checks for this.
-    if (!fill) { setTimeout(onComplete, 300); return; }
-    const iv = setInterval(() => {
-        pct += Math.random() * 14 + 4;
-        fill.style.width = Math.min(pct, 95) + '%';
-        if (pct >= 95) { clearInterval(iv); fill.style.width = '100%'; setTimeout(onComplete, 300); }
-    }, 80);
 }
 
 // The canvas sits below the fixed header. renderer.setSize() writes inline
@@ -750,9 +742,12 @@ function updatePlayerMovement(dt) {
 
     const oldX = camera.position.x, oldZ = camera.position.z;
     let nx = oldX + mx * speed, nz = oldZ + mz * speed;
-    if (!checkCollision(nx, nz, 0.5)) { camera.position.x = nx; camera.position.z = nz; }
-    else if (!checkCollision(nx, oldZ, 0.5)) camera.position.x = nx;
-    else if (!checkCollision(oldX, nz, 0.5)) camera.position.z = nz;
+    // _groundY is the player's feet height above ground this frame (0 unless
+    // mid-jump) — passing it lets a jump arc clear anything short enough,
+    // same height test blockedAt() already uses for projectiles/sightlines.
+    if (!checkCollision(nx, nz, 0.5, _groundY)) { camera.position.x = nx; camera.position.z = nz; }
+    else if (!checkCollision(nx, oldZ, 0.5, _groundY)) camera.position.x = nx;
+    else if (!checkCollision(oldX, nz, 0.5, _groundY)) camera.position.z = nz;
 
     // Vertical axis. The stance height is the floor the jump arc sits on, so
     // crouching mid-air still lands correctly and the reload dip and screen
@@ -767,11 +762,16 @@ function updatePlayerMovement(dt) {
 }
 let _groundY = 0; // height above the current stance's eye level (jump arc)
 
-function checkCollision(x, z, radius) {
+// `footY` is how high the mover's feet are off the ground (0 when grounded).
+// A jump arc high enough to clear an obstacle's registered height passes over
+// it — same rule blockedAt() uses for projectiles/sightlines. Perimeter walls
+// and enemies (which never pass footY) are unaffected.
+function checkCollision(x, z, radius, footY = 0) {
     const perim = AW.sceneConfig ? AW.sceneConfig.perimeter : DEFAULT_PERIMETER;
     const hw = perim.halfW - radius, hd = perim.halfD - radius;
     if (x < -hw || x > hw || z < -hd || z > hd) return true;
     for (const ob of AW.obstacles) {
+        if (footY > (ob.h ?? 2)) continue; // jump clears it
         if (x > ob.x - ob.hw - radius && x < ob.x + ob.hw + radius &&
             z > ob.z - ob.hd - radius && z < ob.z + ob.hd + radius) return true;
     }
@@ -1276,7 +1276,7 @@ window.toggleSettings = toggleSettings;
 window.AWDebug = {
     AW, WaveManager,
     // Combat/movement internals, for driving the game from a headless browser.
-    hasLineOfSight, blockedAt, tryJump, disposeScene,
+    hasLineOfSight, blockedAt, tryJump, checkCollision, disposeScene,
     get transientCount() { return _transients.length; },
     get enemies() { return WaveManager.activeEnemies.length; },
     get renderer() { return renderer; },

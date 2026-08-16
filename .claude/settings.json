@@ -110,7 +110,13 @@
       "PowerShell(Test-Path:*)",
       "PowerShell(Measure-Object:*)",
       "PowerShell(Set-Location:*)",
-      "PowerShell(cd:*)"
+      "PowerShell(cd:*)",
+      "PowerShell(Set-Location -Path:*)",
+      "PowerShell(Push-Location:*)",
+      "PowerShell(Pop-Location:*)",
+      "Bash(cd -:*)",
+      "Bash(pushd:*)",
+      "Bash(popd:*)"
     ],
     "deny": [
       "Read(./.env)"

@@ -14,10 +14,29 @@ three.
 `heavy` have real models** — **`drone` and `boss` have no GLB at all** and
 always render as procedural primitives from `_walkerGeo()` (`src/enemies.js:66`).
 
-The GLBs were Draco-compressed **without normal attributes**, so they would
-shade pure black; `ensureNormals()` (`src/gltf.js:25`) recomputes them at load.
-That is a symptom of a rough export pipeline, and fixing it at the source
-removes a load-bearing workaround.
+> **Correction (2026-08-16).** Direct GLB inspection shows the shipped robot
+> GLBs are **not Draco-compressed** (no `extensionsUsed`, no
+> `KHR_draco_mesh_compression` on the primitive) and **do carry `NORMAL`**
+> alongside `POSITION`/`TEXCOORD_0`/`JOINTS_0`/`WEIGHTS_0`. So
+> `ensureNormals()` (`src/gltf.js:25`) is *not* load-bearing for these three
+> files, and "re-Draco on export" below describes an intended state, not the
+> current one. Verify with `python tools/glb-inspect.py <file>` before acting on
+> either claim. Scene props may still differ — this was checked for
+> `scout`/`grunt`/`heavy`.
+
+### ~~Open defect~~ — heavy robot duplicate arm + flicker · **FIXED 2026-08-16**
+
+`assets/models/heavy.glb` shipped **two** walk clips (`preset:walk` and
+`preset:walk.001`) where `grunt.glb` has one, driving the same four arm bones to
+conflicting poses. Now fixed on three levels — asset (`animations: 1`, intended
+static gun-forward pose preserved bit-for-bit), code (`src/enemies.js` selects
+the clip by name, not index), and pipeline (`tools/transplant-walk.py` and
+`tools/tripo-pose-blend.py` are idempotent and fail loudly on ≠1 clip).
+
+The cause was **not** running the transplant twice, as first suspected: Blender's
+glTF exporter writes out orphaned and NLA-stashed actions, so a *single* run
+produced two clips. Full analysis in
+[heavy-arm-bug-investigation.md](heavy-arm-bug-investigation.md).
 
 ---
 

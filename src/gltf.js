@@ -1,7 +1,12 @@
 /* Shared GLTF/DRACO loading — the AW GLBs use KHR_draco_mesh_compression.
-   Decoding every model at once overwhelms lower-powered GPUs and can leave
-   every request stuck behind the decoder worker. Keep a single, prioritized
-   queue so models always arrive instead of falling back permanently. */
+   Decoding every model at once overwhelmed lower-powered GPUs and left every
+   request stuck behind the decoder worker, so this used to run one job at a
+   time. DRACOLoader already farms decode work out to its own worker pool
+   (default limit 4), so a strictly serial queue on top of that was leaving
+   most of that pool idle — it was the fetch+parse pipeline, not the decoder,
+   that could get overwhelmed. A small bounded concurrency (below the decoder
+   worker limit) gets the overlap back without reintroducing the group-timeout
+   problem a fully unbounded run caused. */
 import * as THREE from 'three';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -19,7 +24,8 @@ export const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath(new URL('../vendor/three/addons/libs/draco/gltf/', import.meta.url).href);
 
 const gltfLoader = new GLTFLoader().setDRACOLoader(dracoLoader);
-let loading = false;
+const MAX_CONCURRENT = 3;
+let active = 0;
 const pending = [];
 
 // These GLBs were Draco-compressed without a normal attribute, so their
@@ -66,16 +72,17 @@ function groundPivot(scene) {
 }
 
 function pumpGLBQueue() {
-    if (loading || pending.length === 0) return;
-    loading = true;
-    const job = pending.shift();
-    gltfLoader.loadAsync(job.url)
-        .then((gltf) => { ensureNormals(gltf.scene); gltf.scene = groundPivot(gltf.scene); return gltf; })
-        .then(job.resolve, job.reject)
-        .finally(() => {
-            loading = false;
-            pumpGLBQueue();
-        });
+    while (active < MAX_CONCURRENT && pending.length > 0) {
+        const job = pending.shift();
+        active++;
+        gltfLoader.loadAsync(job.url)
+            .then((gltf) => { ensureNormals(gltf.scene); gltf.scene = groundPivot(gltf.scene); return gltf; })
+            .then(job.resolve, job.reject)
+            .finally(() => {
+                active--;
+                pumpGLBQueue();
+            });
+    }
 }
 
 // Enemy models take priority over scenery. Scene loaders enqueue their next
