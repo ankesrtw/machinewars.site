@@ -50,6 +50,6 @@ const DEFAULT_SCENE = 'warzone';
 // Campaign sequence: each arena unlocks on completion of the previous one.
 // mars is last — the eventual Space Wars arena (orbital sats vs. CREON's
 // grid) picks up after it; not built yet, so mars stays the finale for now.
-const MISSION_ORDER = ['ghats', 'warzone', 'urban', 'desert', 'jungle', 'arctic', 'alien', 'space', 'mars'];
+const MISSION_ORDER = ['jungle', 'warzone', 'urban', 'desert', 'arctic', 'alien', 'space', 'mars'];
 
 export { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER, SCENE_MODEL_BASE, SCENE_TEXTURE_BASE, ASSET_BASE };

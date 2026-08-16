@@ -27,11 +27,28 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**The re-plan is done (2026-08-17).** The direction change recorded last session
-has been written into `docs/v2/ROADMAP-V2.md` and `docs/v2/TASKS.md`. **Those two
-files are now current and authoritative** — the "stale Phase 1/2" warnings from
-last session are resolved. No code changed this session; this was the planning
-session the previous handoff called for.
+**P1.9.1 done (2026-08-17).** `ghats`/`ghats_east` retired from the campaign
+graph; `jungle` is now `startNode`, `implemented: true`, `unlocks: ['warzone',
+'desert']`. `data/scenes/ghats.data.js`, `play/ghats/`, and its import in
+`src/scenes-data.js` all stay on disk — the scene is still playable at
+`/play/ghats/`, it just left the campaign (Appendix A). `MISSION_ORDER` in
+`src/scenes-data.js` now reads `['jungle', 'warzone', 'urban', 'desert',
+'arctic', 'alien', 'space', 'mars']` (8 entries — `ghats` dropped, nothing else
+reordered). Authored `data/missions/m001.data.js` for `jungle` (it had never
+had one — orphaned since the old `ghats`/`ghats_east` split, see the P0.7 note
+below). Sector-count copy (`N SECTORS`, `0 / N SECTORS CLEARED`) is generated
+by `tools/gen-pages.mjs` from `MISSION_ORDER.length`, not hand-edited — re-ran
+the generator and all 9 pages (including `play/ghats/`) now correctly show 8.
+
+**Verified:** `node tools/validate-missions.mjs` (9/9 ok, including new
+`m001`), `node tools/data-to-json.mjs --check` (regenerated + re-checked
+clean, 22 files now with `m001.json`), `node tools/gen-pages.mjs --check`
+(0). Live-verified via Playwright/real Chrome against a fresh `http-server`
+on port 8933 (8931 had a stale process from an earlier session bound to the
+wrong root — routed around it rather than hunting the orphan PID): hub loads
+zero console errors, `#aw-scene-picker-progress` reads `0 / 8 SECTORS
+CLEARED`, the status row reads `8 SECTORS`, and the scene-card list leads
+with `SECTOR 01 — JUNGLE OUTPOST`; `ghats` no longer appears in the picker.
 
 **What the re-plan decided** (all with the user, via explicit questions):
 
@@ -394,29 +411,26 @@ not throwaway work.
 
 ## Next session — start here
 
-**The plan is current. Build, don't re-plan.** Read `docs/v2/TASKS.md` Phase 1.9,
-then start **P1.9.1**.
+**Start P1.9.2 — wire `waveSet` per scene** (·S, web repo). The one-line
+change P0.3 left ready: set `WaveManager.waveSet = sceneConfig.waveSet ||
+'classic_10'` before `startWave()` in `src/main.js`/wherever the scene hands
+off to `WaveManager`. Add an optional `waveSet` field to the scene schema;
+leave every existing scene (including `jungle`) on `classic_10` for now — this
+task is the wiring, not new content. **Done when:** a scene with `waveSet:
+'<other>'` demonstrably plays a different wave composition in the browser, and
+every unmodified scene plays identically to today (there's no second wave set
+yet, so this may mean authoring a throwaway one to prove the wiring, then
+deciding whether to keep or discard it — read the task fresh in `TASKS.md`).
 
-**P1.9.1 — retire ghats, promote `jungle` to start node** (·S, web repo):
-- `data/campaign.data.js`: delete the `ghats` and `ghats_east` nodes; add a
-  `jungle` node — `implemented: true`, `unlocks: ['warzone', 'desert']`,
-  `startNode: 'jungle'`. Check `requires` on `warzone`/`desert` still resolve
-  (they currently point at `ghats_east`).
-- `src/scenes-data.js`: drop `ghats` from `MISSION_ORDER`, lead with `jungle`.
-  **Keep the `ghats` import and its scene config** — the scene stays playable at
-  `/play/ghats/`, it just leaves the campaign (Appendix A).
-- Author `data/missions/m001.data.js` for `jungle` — it has never had a mission
-  (see the P0.7 note below; that orphan is exactly why `jungle` is now the opener).
-- **Sector-count copy is hardcoded in all HTML pages** (`8 SECTORS`, currently
-  bumped to 9 by P1.5) — recount and update by hand, per AGENTS.md.
-- Verify: `node tools/validate-missions.mjs`, `node tools/data-to-json.mjs
-  --check`, `node tools/gen-pages.mjs --check`, and open the hub to confirm
-  `jungle` leads.
+Then **P1.9.3** (author `ocean` + `grid`). The user offered to **generate AI
+concept art for `ocean` and `space`** — worth taking up before the `ocean`
+layout pass, via `tools/gen-art.mjs`.
 
-Then **P1.9.2** (wire per-scene `waveSet` — the one-line change P0.3 left ready,
-see its note below) and **P1.9.3** (author `ocean` + `grid`). The user offered to
-**generate AI concept art for `ocean` and `space`** — worth taking up before the
-`ocean` layout pass, via `tools/gen-art.mjs`.
+**Note for whoever revisits sector-count copy:** it turned out *not* to be
+hand-maintained — `tools/gen-pages.mjs` derives `sectors` from
+`MISSION_ORDER.length` and regexes it into all 9 pages. AGENTS.md's "Wavezones"
+section description of this as hardcoded-by-hand copy is stale as of P1.9.1;
+worth a follow-up doc fix if this trips someone up again.
 
 **Do not start Unity (Phase 2) until P1.9 lands** — P2.2 is the data importer, and
 importing a stale campaign graph would mean redoing it.
@@ -760,3 +774,26 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   were made interactively with the user, not unilaterally — the roster, the
   `space` movement model, and the ocean-base framing (launch grid, not oil rig)
   are all as specified by them.
+- **2026-08-17** — **P1.9.1**: `data/campaign.data.js` — deleted `ghats`/
+  `ghats_east` nodes, added `jungle` (`startNode`, `implemented: true`,
+  `unlocks: ['warzone', 'desert']`); `warzone`/`desert` `requires` repointed
+  from `ghats_east` to `jungle`. `src/scenes-data.js`'s `MISSION_ORDER` dropped
+  `ghats`, now leads with `jungle` (8 entries); the `ghats` import and its
+  entry in `RAW_SCENE_CONFIGS` were deliberately left in place so `/play/ghats/`
+  stays playable outside the campaign, per Appendix A. New
+  `data/missions/m001.data.js` for `jungle` (ambush/scout-flavor briefing
+  matching the scene's fog/cover description; `rewards.unlockNode: 'warzone'`)
+  — `jungle` had never had a mission since the old ghats split orphaned it from
+  the graph (P0.7 note). Discovered sector-count copy (`N SECTORS`, `0 / N
+  SECTORS CLEARED`) is **not** hand-maintained as AGENTS.md's "Wavezones"
+  section implies — `tools/gen-pages.mjs` derives it from `MISSION_ORDER.length`
+  and regexes it into all 9 pages automatically; re-ran the generator instead
+  of hand-editing, all 9 pages (incl. `play/ghats/`) now correctly read 8.
+  Verified: `validate-missions.mjs` (9/9 ok), `data-to-json.mjs --check`
+  (regenerated, 22 files clean incl. new `m001.json`/refreshed
+  `campaign.json`), `gen-pages.mjs --check` (0). Live-verified hub via
+  Playwright/real Chrome (routed around a stale `http-server` process
+  squatting on port 8931 bound to the wrong root by using 8933 instead — did
+  not chase down the orphan PID): zero console errors, progress reads `0 / 8
+  SECTORS CLEARED`, status row reads `8 SECTORS`, scene-card list leads with
+  `SECTOR 01 — JUNGLE OUTPOST`, `ghats` absent from the picker.

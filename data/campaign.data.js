@@ -1,36 +1,28 @@
-// The 11-node campaign graph (docs/v2/ROADMAP-V2.md §3/§4.2). `requires` is an AND
-// list — a node unlocks when every entry is in `nodesCompleted`. `unlocks` is advisory
-// (drawn as hub-map edges), a deliberate two-way encoding of the same graph so nothing
-// has to invert it at runtime. `implemented:false` marks sites with no `data/scenes/`
-// entry yet — the hub skips these until their site task lands.
+// The 9-node campaign graph (docs/v2/ROADMAP-V2.md §3/§4.2, revised §1.5 2026-08-17).
+// `requires` is an AND list — a node unlocks when every entry is in `nodesCompleted`.
+// `unlocks` is advisory (drawn as hub-map edges), a deliberate two-way encoding of the
+// same graph so nothing has to invert it at runtime. `implemented:false` marks sites
+// with no `data/scenes/` entry yet — the hub skips these until their site task lands.
+// `ghats`/`ghats_east` retired from the graph (Appendix A) — `jungle` is the opener.
 export default {
   id: 'mw_campaign_01',
-  startNode: 'ghats',
+  startNode: 'jungle',
   nodes: {
-    ghats: {
-      site: 'ghats',
+    jungle: {
+      site: 'jungle',
       act: 'act01',
-      title: 'GHOST SIGNAL',
+      title: 'JUNGLE OUTPOST',
       implemented: true,
       requires: [],
-      unlocks: ['ghats_east'],
-      map: { x: 0.62, y: 0.58, label: 'WESTERN GHATS' },
-    },
-    ghats_east: {
-      site: 'ghats_east',
-      act: 'act01',
-      title: 'EASTERN GHATS',
-      implemented: false,
-      requires: ['ghats'],
       unlocks: ['warzone', 'desert'],
-      map: { x: 0.7, y: 0.5, label: 'EASTERN GHATS' },
+      map: { x: 0.62, y: 0.58, label: 'JUNGLE OUTPOST' },
     },
     warzone: {
       site: 'warzone',
       act: 'act02',
       title: 'INDUSTRIAL WARZONE',
       implemented: true,
-      requires: ['ghats_east'],
+      requires: ['jungle'],
       unlocks: ['urban'],
       map: { x: 0.66, y: 0.4, label: 'INDUSTRIAL WARZONE' },
     },
@@ -39,7 +31,7 @@ export default {
       act: 'act02',
       title: 'THAR RELAY',
       implemented: true,
-      requires: ['ghats_east'],
+      requires: ['jungle'],
       unlocks: ['arctic'],
       map: { x: 0.5, y: 0.35, label: 'THAR RELAY' },
     },

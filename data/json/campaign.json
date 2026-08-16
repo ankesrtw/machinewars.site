@@ -1,38 +1,21 @@
 {
   "id": "mw_campaign_01",
-  "startNode": "ghats",
+  "startNode": "jungle",
   "nodes": {
-    "ghats": {
-      "site": "ghats",
+    "jungle": {
+      "site": "jungle",
       "act": "act01",
-      "title": "GHOST SIGNAL",
+      "title": "JUNGLE OUTPOST",
       "implemented": true,
       "requires": [],
-      "unlocks": [
-        "ghats_east"
-      ],
-      "map": {
-        "x": 0.62,
-        "y": 0.58,
-        "label": "WESTERN GHATS"
-      }
-    },
-    "ghats_east": {
-      "site": "ghats_east",
-      "act": "act01",
-      "title": "EASTERN GHATS",
-      "implemented": false,
-      "requires": [
-        "ghats"
-      ],
       "unlocks": [
         "warzone",
         "desert"
       ],
       "map": {
-        "x": 0.7,
-        "y": 0.5,
-        "label": "EASTERN GHATS"
+        "x": 0.62,
+        "y": 0.58,
+        "label": "JUNGLE OUTPOST"
       }
     },
     "warzone": {
@@ -41,7 +24,7 @@
       "title": "INDUSTRIAL WARZONE",
       "implemented": true,
       "requires": [
-        "ghats_east"
+        "jungle"
       ],
       "unlocks": [
         "urban"
@@ -58,7 +41,7 @@
       "title": "THAR RELAY",
       "implemented": true,
       "requires": [
-        "ghats_east"
+        "jungle"
       ],
       "unlocks": [
         "arctic"

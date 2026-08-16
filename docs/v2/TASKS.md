@@ -221,7 +221,7 @@ Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline) *(historical)*
 graph.** Est. 1 week.
 Plan ref: [§3](ROADMAP-V2.md#3-site-roster), [§3.1](ROADMAP-V2.md#31-per-site-mechanical-variation--the-rosters-real-requirement)
 
-- [ ] **P1.9.1 — Retire `ghats`/`ghats_east`, promote `jungle` to start node** · **S**
+- [x] **P1.9.1 — Retire `ghats`/`ghats_east`, promote `jungle` to start node** · **S** (2026-08-17)
   Remove both nodes from `data/campaign.data.js`; add a `jungle` node with
   `startNode: 'jungle'`, `implemented: true`, and `unlocks: ['warzone', 'desert']`.
   Drop `ghats` from `MISSION_ORDER` in `src/scenes-data.js` and lead with `jungle`.
@@ -481,7 +481,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 |---|---|---|---|
 | P0 — Data foundation | 8 | 8 | ✅ **passed 2026-08-17** |
 | P1 — GIS *(closed research)* | 6 | 5 + 1 dropped | ⛔ **answered "no" — fallback taken** |
-| P1.9 — Roster + graph rework | 3 | 0 | — *(no gate; blocks P2.2)* |
+| P1.9 — Roster + graph rework | 3 | 1 | — *(no gate; blocks P2.2)* |
 | P2 — Unity foundation + perf | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 6 | 0 | ⬜ |
 | P4 — Campaign spine | 7 | 0 | ⬜ **← MSP, ships without 6DOF** |
