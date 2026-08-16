@@ -9,3 +9,5 @@
 
 # Personal Claude Code overrides (project-shared settings.json is committed)
 .claude/settings.local.json
+# GIS pipeline downloads (DEM/imagery tiles) — regenerable, never commit
+tools/gis/cache/
