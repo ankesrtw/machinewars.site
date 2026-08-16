@@ -28,8 +28,11 @@ done, say exactly where it stopped and what breaks.
 ## Current state
 
 **Phase:** P1 — GIS pipeline + first site (web preview)
-**Status:** Spike complete, feasibility proven. No code written yet.
-**Last commit:** `f42655a` Add Ocean Base and The Creon Grid as locked placeholder tiles
+**Status:** Spike complete, feasibility proven. No engine code written yet.
+**Last commit:** `b46c1a6` Add v2 roadmap, task list, and GIS feasibility spike results
+
+`tools/gis/cache/` is already gitignored. Spike decoders are preserved in
+`docs/v2/spike/` — **port from those, they work.**
 
 ### What the spike established (2026-08-16)
 
@@ -81,11 +84,11 @@ decoded to elevation by committed tooling.
    cache. Idempotent: skip existing unless `--force`, like `tools/gen-art.mjs`. Follow
    `tools/gen-pages.mjs` conventions — Node ESM, zero deps, shebang, `--dry-run`/`--check`,
    header comment explaining *why*.
-4. `tools/gis/decode-terrarium.mjs` — the PNG→elevation decoder. **A working version
-   exists** in the scratchpad from the spike; port it rather than rewriting:
-   `C:\Users\Thinkpad\AppData\Local\Temp\claude\d--ai-projects-machinewars-site\bd036325-1045-4db4-83af-2356fe948f1a\scratchpad\window.mjs`
-   (has tile mosaicking + the ASCII preview, which is genuinely useful for eyeballing a
-   new site before rendering it). **Copy it out before the scratchpad is cleaned.**
+4. `tools/gis/decode-terrarium.mjs` — the PNG→elevation decoder. **A working version is
+   committed at `docs/v2/spike/terrarium-decode-spike.mjs`** — port it rather than
+   rewriting. It already does tile mosaicking and an ASCII heightmap preview, which is
+   genuinely useful for eyeballing a new site before rendering it. See
+   `docs/v2/spike/README.md`.
 
 **Done when:** `node tools/gis/fetch-dem.mjs --site=ghats` populates the cache, a re-run
 downloads nothing, and the decoder prints the same `relief: 27.9m` for the 400m window
