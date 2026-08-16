@@ -27,20 +27,43 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P1 GIS pipeline (P1.1–P1.4 done) — **blocked on P0** for P1.5 onward.
-**Status:** Heightmap ground engine code exists (`_buildHeightmapGround()` in
-`src/scenes.js`) but is **unwired and unverified in the browser** — no scene config sets
-`ground.type: 'heightmap'` yet, so nothing calls it. Wiring a real `ghats` scene (P1.5)
-means adding a new site to `scenes-data.js`, which is exactly the authoring work
-`TASKS.md` says can't happen before the **P0 gate** passes. P0 has not been started.
-**Decision this session:** stop P1 here, start Phase 0 next.
-**Last commit:** (this session) P1.4 `_buildHeightmapGround()` — additive, existing 8
-arenas confirmed unaffected (`gen-pages.mjs --check` + `node --check src/scenes.js`).
+**Phase:** P0 — Data foundation (P0.1 done). P1 is paused at P1.4 (P1.1–P1.4 done,
+P1.5 blocked until the P0 gate passes — see below).
+**Status:** `data/` scaffolded — `data/README.md` (the contract) + `tools/data-to-json.mjs`
+exist, `--check` passes clean on the still-empty `data/`. Nothing has been externalized
+into it yet (`SCENE_CONFIGS`, `WEAPONS`, etc. are still in `src/`, untouched).
+**Last commit:** (this session) P0.1 `data/` scaffold + `tools/data-to-json.mjs`.
+
+P1's heightmap ground engine code (`_buildHeightmapGround()` in `src/scenes.js`, P1.4)
+still exists and is still **unwired and unverified in the browser** — no scene config sets
+`ground.type: 'heightmap'` yet. That's P1.5, blocked until P0.4 gives `ghats` a proper
+`data/scenes/` slot instead of hand-adding it to today's `scenes-data.js`.
 
 `tools/gis/cache/` is gitignored (confirmed via `git check-ignore`). `assets/terrain/` is
 **not** gitignored — baked outputs commit (confirmed via `git check-ignore -v`, exit 1).
 Spike decoders are preserved in `docs/v2/spike/` — already ported, keep them as reference
 only from here.
+
+### What P0.1 built
+
+- `data/README.md` — the contract: one `export default {...}` per file, JSON-literal
+  shape only (no functions/imports/computed values), kept as `.data.js` not `.json` so a
+  plain `import` needs no fetch (same reasoning as `ASSET_BASE`).
+- `tools/data-to-json.mjs` — recursively finds `data/**/*.data.js` (skipping `data/json/`
+  itself), imports each default export, and mirrors it to `data/json/<same path>.json`.
+  Follows `gen-pages.mjs` conventions: `--check` (diffs against what's on disk, no
+  writes), `--dry-run`. **Catches contract violations with a precise key path** —
+  `findNonJsonLiteral()` walks the value looking for functions/`undefined`/symbols/bigints
+  before serializing, because `JSON.stringify` alone silently *omits* those instead of
+  erroring, which would have made a violation invisible. Smoke-tested against a throwaway
+  `data/_smoketest/*.data.js` (good value round-trips, bad value fails with
+  `$.fn is a function`, edited value shows `STALE` under `--check`) — removed after
+  verifying, `data/` is genuinely empty again.
+- **Bug caught while testing**: the header comment's own usage line originally wrote the
+  glob `data/**/*.data.js` — inside a `/* */` block that `**/*` sequence contains a literal
+  `*/`, closing the comment early and breaking as a syntax error. Reworded to
+  `data/.../*.data.js`. Worth remembering for any future header comment that wants to
+  write a real double-star glob.
 
 ### What P1.4 built (code only — read before touching `_buildGround`)
 
@@ -173,26 +196,32 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.1** (see `docs/v2/TASKS.md` Phase 0) — scaffold `data/` + the JSON exporter.
-P1.5 (wiring an actual `ghats` scene so P1.4's code can be seen/verified) needs a new site
-added to scene config, and `TASKS.md` is explicit: *"Nothing in Phase 1+ may start until
-the P0 gate passes."* P1.1–P1.4 already happened before this was caught — see the log
-below — but P1.5 is where it would bite: P0.4 splits `SCENE_CONFIGS` into
-`data/scenes/<slug>.data.js` ×8, and a `ghats` site added straight into today's
-`scenes-data.js` would just be more of the exact thing P0.4 has to migrate away from.
+**Task: P0.2** (see `docs/v2/TASKS.md` Phase 0) — externalize `WEAPONS` + `SCORE_VALUES`.
+Smallest blast radius, proves the `data/` pattern end-to-end before the bigger P0.3/P0.4
+tasks.
 
-1. Read `docs/v2/TASKS.md` Phase 0 section in full before starting — 8 tasks, do them in
-   order, P0.4 (`SCENE_CONFIGS` split, **L**, 1,501 LOC) is the big one.
-2. **P0.1** first: `data/README.md` (contract: one `export default {...}` per file,
-   JSON-literal only, no functions/imports/computed values) + `tools/data-to-json.mjs`
-   (~20 LOC + `--check`), following `tools/gen-pages.mjs` conventions.
-3. Work the list in order: P0.2 (weapons/score, smallest blast radius) → P0.3 (enemies/
-   waves) → P0.4 (scenes, the big one — **this is what unblocks wiring up ghats**) → P0.5
-   (campaign graph) → P0.6 (save v2 migration) → P0.7 (missions) → P0.8 (docs).
-4. **P0.4 note relevant to P1**: when this splits `SCENE_CONFIGS`, the split should
-   produce a `data/scenes/ghats.data.js` slot even though `ghats` doesn't exist as a site
-   yet (`implemented:false` per P0.5's node-graph task) — that's the natural point to
-   resume P1.5 instead of hand-editing `scenes-data.js` directly.
+1. `WEAPONS` (`src/main.js:40`) → `data/weapons.data.js`. `SCORE_VALUES` (`src/main.js:46`)
+   → fold into a new `data/enemies.data.js` as a per-type `score` field (P0.3 will add the
+   rest of `enemies.data.js`; don't build the full file now, just enough to hold `score`
+   per the roadmap's §4.1 table — check `ENEMY_TYPES` at `src/enemies.js:165` for the type
+   keys `SCORE_VALUES` needs to align with).
+2. `HUD.init(AW, WEAPONS)` (`src/main.js:347`) already takes `WEAPONS` by injection — no
+   HUD-side change needed, just repoint the import.
+3. Verify: `node tools/data-to-json.mjs --check` picks up the two new files cleanly; then
+   in-browser — all three weapons fire, switch via mouse wheel **and** gamepad LB/RB,
+   reload correctly, and score still increments per kill type. This is a real gameplay
+   change (data now lives outside `src/`), so this one needs the browser check, not just
+   `gen-pages.mjs --check`.
+4. Commit, tick P0.2, update this file.
+
+Then continue down Phase 0 in order: P0.3 (enemies/waves) → **P0.4 (scenes, the big one —
+1,501 LOC, this is what unblocks resuming P1.5/`ghats`)** → P0.5 (campaign graph) → P0.6
+(save v2 migration) → P0.7 (missions) → P0.8 (docs).
+
+**P0.4 note relevant to P1**: when this splits `SCENE_CONFIGS`, the split should produce a
+`data/scenes/ghats.data.js` slot even though `ghats` doesn't exist as a playable site yet
+(`implemented:false` per P0.5's node-graph task) — that's the natural point to resume
+P1.5 instead of hand-editing `scenes-data.js` directly.
 
 **Done when P0 gate passes** (`TASKS.md` "GATE P0"): all 8 arenas load/play unchanged from
 `data/`, `gen-pages.mjs --check` exits 0, `data-to-json.mjs` round-trips, v1 save migrates,
@@ -250,3 +279,9 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   P0 properly rather than route around the gate. P1.1–P1.4 already happened pre-gate —
   left as-is (not worth unwinding), but P1.5 is paused until P0.4 gives `ghats` a proper
   `data/scenes/` slot to land in.
+- **2026-08-17** — P0.1: `data/README.md` (the content contract) + `tools/data-to-json.mjs`
+  (recursive `.data.js` → `data/json/*.json` mirror, `--check`/`--dry-run`, precise
+  contract-violation errors via a hand-rolled JSON-literal walk since `JSON.stringify`
+  silently drops functions/`undefined` instead of erroring). `--check` passes clean on
+  empty `data/`. Smoke-tested with a throwaway file, removed after — `data/` still empty,
+  which is correct for this task (P0.2 is what actually externalizes anything).

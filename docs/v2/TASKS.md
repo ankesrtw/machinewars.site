@@ -51,7 +51,7 @@ done, record exactly where it stopped and what is broken.
 **Nothing in Phase 1+ may start until the P0 gate passes.** Est. 4–6 weeks.
 Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
 
-- [ ] **P0.1 — Scaffold `data/` + the JSON exporter** · **S**
+- [x] **P0.1 — Scaffold `data/` + the JSON exporter** · **S** *(2026-08-17)*
   Create `data/` with a `README.md` stating the contract (one `export default {...}` per
   file, JSON-literal only, no functions/imports/computed values). Write
   `tools/data-to-json.mjs` (~20 LOC + `--check`) emitting `data/json/*.json`, following
@@ -385,7 +385,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 0 | ⬜ |
+| P0 — Data foundation | 8 | 1 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |
