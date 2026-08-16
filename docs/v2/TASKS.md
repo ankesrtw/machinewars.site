@@ -145,17 +145,25 @@ graph AND-gate resolves correctly.
 **Goal:** answer *"does real terrain read as a real place?"* cheaply. Est. 4–6 weeks.
 Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline)
 
-- [ ] **P1.1 — `tools/gis/sites.data.js` + cache scaffolding** · **S**
+- [x] **P1.1 — `tools/gis/sites.data.js` + cache scaffolding** · **S** *(2026-08-16)*
   The roster as data: slug → `{ bbox, centerLatLon, playableExtentM, source, notes }` for
   all GIS sites ([§3](ROADMAP-V2.md#3-site-roster)). Create `tools/gis/cache/` and **add
   it to `.gitignore`** (like `tools/tripo-out/`).
   **Done when:** `sites.data.js` imports cleanly and every GIS site has a valid bbox.
 
-- [ ] **P1.2 — `fetch-dem.mjs` + `fetch-imagery.mjs`** · **M**
+- [x] **P1.2 — `fetch-dem.mjs` + decoder** · **M** *(2026-08-16, partial — see note)*
   Copernicus DEM GLO-30 and Sentinel-2 L2A for a bbox → `tools/gis/cache/`. Idempotent
   (skip existing unless `--force`, like `gen-art.mjs`). Credentials from `.env`, never
   logged, never committed.
   **Done when:** Ghats DEM + imagery land in cache; a re-run re-downloads nothing.
+  **Note:** built `fetch-dem.mjs` against **AWS Terrarium tiles** (ported from the P1
+  spike), not Copernicus/Sentinel — zero-dep, already proven end-to-end, no auth. Ghats
+  DEM cached, `--check` confirms idempotency. `decode-terrarium.mjs` ported from
+  `docs/v2/spike/terrarium-decode-spike.mjs`, reproduces the regression relief numbers
+  (27.8m/400m, 50.3m/1200m — matches spike to float precision). `fetch-imagery.mjs`
+  (Sentinel-2 albedo source) **not built** — deferred to whenever P1.3's `build-albedo.mjs`
+  needs it; ground albedo isn't required to test the heightmap/horizon question this
+  phase's gate is actually asking.
 
 - [ ] **P1.3 — `build-heightmap.mjs` + `build-albedo.mjs`** · **M**
   GeoTIFF → 1025²/2049² 16-bit PNG heightmap **plus a metadata JSON** (m/px, min/max
