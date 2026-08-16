@@ -141,6 +141,16 @@ graph AND-gate resolves correctly.
 ---
 
 # Phase 1 — GIS pipeline + first site (web preview)
+
+> **⚠️ STALE (2026-08-17) — read `docs/v2/HANDOFF.md` "Current state" before
+> resuming anything below.** After P1.5 shipped and was fixed twice, the user
+> decided the hand-authored (v1) arena style carries forward into Unity, not
+> this GIS/DEM pipeline. P1.6 and GATE P1 are **not the next task** — the
+> pipeline stays in the repo as a research track, and Phase 2's Unity terrain
+> A/B spike (which assumed this pipeline as the terrain source) needs a
+> re-plan before it's picked up. Do not tick P1.6 or GATE P1 without first
+> reading the handoff note and confirming the direction hasn't changed again.
+
 **Goal:** answer *"does real terrain read as a real place?"* cheaply. Est. 4–6 weeks.
 Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline)
 
@@ -186,7 +196,7 @@ Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline)
   Re-open this task's checkbox to unchecked if P0 restructures `ground` config shape in a
   way `_buildHeightmapGround()` needs to follow.
 
-- [ ] **P1.5 — `emit-scene.mjs` → `data/scenes/ghats.data.js`** · **M**
+- [x] **P1.5 — `emit-scene.mjs` → `data/scenes/ghats.data.js`** · **M** *(2026-08-17)*
   Heightmap metadata → a scene data stub: `ground`, `perimeter`, and `lighting` seeded
   from the site's **real sun angle for its latitude** and biome palette. Then
   **hand-author the playable box** — ~200×200m of `coverBlocks`, spawn arcs, player start
@@ -385,7 +395,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
 | P0 — Data foundation | 8 | 8 | ⬜ |
-| P1 — GIS + first site | 6 | 4 | ⬜ |
+| P1 — GIS + first site | 6 | 5 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |
 | P4 — Campaign spine | 7 | 0 | ⬜ **← MSP** |

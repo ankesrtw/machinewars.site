@@ -6,7 +6,7 @@
       "site": "ghats",
       "act": "act01",
       "title": "GHOST SIGNAL",
-      "implemented": false,
+      "implemented": true,
       "requires": [],
       "unlocks": [
         "ghats_east"

@@ -49,7 +49,26 @@ export default {
                 [90, 78, 46],  // laterite soil highlight
                 [30, 34, 22],  // deep shade
             ],
+            // Hypsometric tint (low->high elevation) + hillshade sun direction,
+            // consumed by build-albedo.mjs's DEM-aware pass (P1.5 revision) —
+            // a flat speckle-only texture reads as mud once stretched under
+            // 150m+ of real relief; this ties the texture to the terrain shape.
+            lowTint: [46, 48, 28],    // valley floor: damp, shadowed, greener
+            highTint: [138, 128, 96], // ridge crest: drier, sun-exposed, warmer/lighter
+            // Matches data/scenes/ghats.data.js lighting.sunDirection — kept in
+            // sync by hand (small, deliberate duplication rather than a
+            // cross-directory dependency from tools/gis/ into data/).
+            sunDirection: [0, -0.97, 0.23],
         },
+        // How the albedo texture tiles across the ground mesh in
+        // data/scenes/ghats.data.js — build-albedo.mjs needs this to know how
+        // many real-world metres one texture repeat covers (groundVisibleRadiusM
+        // * 2 / groundTextureRepeats), so its hillshade/tint sampling window
+        // matches what the mesh actually shows instead of guessing. Kept in
+        // sync by hand with ground.visibleRadiusM / ground.textureUScale in the
+        // scene file, same reasoning as sunDirection above.
+        groundVisibleRadiusM: 200,
+        groundTextureRepeats: 8,
         source: {
             provider: 'aws-terrain-tiles',
             format: 'terrarium',

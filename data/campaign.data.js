@@ -11,7 +11,7 @@ export default {
       site: 'ghats',
       act: 'act01',
       title: 'GHOST SIGNAL',
-      implemented: false,
+      implemented: true,
       requires: [],
       unlocks: ['ghats_east'],
       map: { x: 0.62, y: 0.58, label: 'WESTERN GHATS' },

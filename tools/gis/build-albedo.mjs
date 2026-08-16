@@ -13,6 +13,28 @@
    file-writing twin so ground.type:'heightmap' scenes can ship a real
    texture file instead of generating one at runtime).
 
+   Organic detail + macro elevation tint (P1.5 revision): the original
+   speckle pass (hard-edged 4-60px rectangles) reads as flat mud once
+   stretched under 150m+ of real terrain — no organic variation, and an
+   earlier per-texture-tile hillshade attempt confirmed the P1 spike's own
+   finding applies here too: real DEM relief is close to flat at the ~50m
+   scale one texture repeat covers (docs/v2/HANDOFF.md "the load-bearing
+   finding"), so shading *within* a tile from DEM slope had almost nothing
+   to work with. Fixed two separate ways:
+     - close-up detail is now multi-octave value noise (fractalNoise2D
+       below) instead of rectangle blotches — organic mottling at a scale
+       that actually reads as dirt/leaf-litter up close, same spirit as
+       src/fx.js's in-browser proceduralGroundTexture but tuned for a much
+       larger baked tile.
+     - a macro elevation tint samples the DEM across the *entire visible
+       ring* (site.groundVisibleRadiusM, not one 50m texture repeat) and
+       blends low/high elevation color across that whole span — this is
+       DEM relief used at the scale the spike proved it actually has
+       structure, not invented per-tile detail it doesn't have.
+   Falls back to organic-noise-only (no elevation tint) if the site has no
+   cached DEM mosaic yet — keeps this script usable before fetch-dem.mjs
+   has run for a given site.
+
    Swap-in path to real imagery later: build fetch-imagery.mjs (Sentinel-2
    L2A per ROADMAP-V2 §5.1), then point this script at the composite
    instead of albedoPalette — the output contract (albedo.png +
@@ -36,6 +58,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
 import SITES from './sites.data.js';
+import { loadMosaic, windowStats } from './decode-terrarium.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TERRAIN_ROOT = path.join(ROOT, 'assets', 'terrain');
@@ -110,6 +133,65 @@ function writeRGB8PNG(filePath, W, H, rgb) {
     fs.writeFileSync(filePath, png);
 }
 
+// Try to load the site's DEM mosaic for macro elevation tinting. Returns
+// null (not throw) if no cached tiles exist yet — see header comment.
+function tryLoadDem(slug, site) {
+    try {
+        const mosaic = loadMosaic(slug);
+        const { min, max } = windowStats(mosaic, site.horizonExtentM || site.playableExtentM);
+        return { mosaic, elevationMin: min, elevationRange: (max - min) || 1 };
+    } catch {
+        return null;
+    }
+}
+
+// Bilinear elevation lookup at world position (wx, wz), sampled from the
+// mosaic in the same lat/lon-anchored pixel space build-heightmap.mjs uses.
+function sampleElevation(dem, wx, wz) {
+    const { mos, M, mpp, cx, cy } = dem.mosaic;
+    const sx = cx + (wx / mpp), sy = cy + (wz / mpp);
+    const x0 = Math.max(0, Math.min(M - 1, Math.floor(sx)));
+    const y0 = Math.max(0, Math.min(M - 1, Math.floor(sy)));
+    const x1 = Math.min(M - 1, x0 + 1);
+    const y1 = Math.min(M - 1, y0 + 1);
+    const fx = Math.max(0, Math.min(1, sx - x0));
+    const fy = Math.max(0, Math.min(1, sy - y0));
+    const a = mos[y0 * M + x0], b = mos[y0 * M + x1];
+    const c = mos[y1 * M + x0], d = mos[y1 * M + x1];
+    const top = a + (b - a) * fx, bot = c + (d - c) * fx;
+    return top + (bot - top) * fy;
+}
+
+// Deterministic hash -> [0,1), used as the value-noise lattice so no state
+// needs to persist between calls (buildAlbedo calls this once per texel).
+function latticeValue(seed, ix, iy) {
+    let h = (ix * 374761393 + iy * 668265263 + seed * 2654435761) | 0;
+    h = (h ^ (h >>> 13)) * 1274126177;
+    h = (h ^ (h >>> 16)) >>> 0;
+    return h / 0xffffffff;
+}
+
+// Value noise (bilinear-interpolated hash lattice), summed over a few
+// octaves for organic mottling — replaces the old hard-edged rectangle
+// speckle, which reads as a repeating tile pattern rather than dirt/leaf
+// litter once stretched under real-scale terrain.
+function fractalNoise2D(seed, x, y, octaves = 4) {
+    let sum = 0, amp = 0.5, freq = 1, total = 0;
+    for (let o = 0; o < octaves; o++) {
+        const fx = x * freq, fy = y * freq;
+        const x0 = Math.floor(fx), y0 = Math.floor(fy);
+        const tx = fx - x0, ty = fy - y0;
+        const v00 = latticeValue(seed, x0, y0), v10 = latticeValue(seed, x0 + 1, y0);
+        const v01 = latticeValue(seed, x0, y0 + 1), v11 = latticeValue(seed, x0 + 1, y0 + 1);
+        const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty); // smoothstep
+        const top = v00 + (v10 - v00) * sx, bot = v01 + (v11 - v01) * sx;
+        sum += (top + (bot - top) * sy) * amp;
+        total += amp;
+        amp *= 0.5; freq *= 2.3;
+    }
+    return sum / total; // 0..1
+}
+
 function buildAlbedo(slug, size) {
     const site = SITES[slug];
     if (!site) throw new Error(`Unknown site "${slug}"`);
@@ -118,24 +200,86 @@ function buildAlbedo(slug, size) {
 
     const rgb = Buffer.alloc(size * size * 3);
     const [br, bg, bb] = palette.base;
-    for (let i = 0; i < size * size; i++) {
-        rgb[i * 3] = br; rgb[i * 3 + 1] = bg; rgb[i * 3 + 2] = bb;
+    const noiseSeed = site.zoom * 1000 + slug.length;
+
+    // One texture repeat covers groundVisibleRadiusM*2/groundTextureRepeats
+    // real metres (see sites.data.js) — used below both to convert texel
+    // coordinates to world metres for the macro elevation sample, and to
+    // pick a noise frequency that reads as organic grain at that print size.
+    const groundDiameterM = (site.groundVisibleRadiusM || site.horizonExtentM / 2) * 2;
+    const tileRepeats = site.groundTextureRepeats || 8;
+    const tileWidthM = groundDiameterM / tileRepeats;
+
+    const dem = (palette.lowTint && palette.highTint) ? tryLoadDem(slug, site) : null;
+    const sunUp = palette.sunDirection ? -palette.sunDirection[1] : 0.97; // 0..1, how overhead the sun is
+    const [ltR, ltG, ltB] = palette.lowTint || palette.base;
+    const [htR, htG, htB] = palette.highTint || palette.base;
+
+    for (let ty = 0; ty < size; ty++) {
+        for (let tx = 0; tx < size; tx++) {
+            const u = tx / size, v = ty / size;
+            const idx = (ty * size + tx) * 3;
+
+            // Organic close-up detail: two noise fields at different
+            // frequencies (broad blotches + fine grain), each biased toward
+            // one speckle color from the palette — replaces the old
+            // hard-edged rectangle speckle.
+            const macro = fractalNoise2D(noiseSeed, u * 6, v * 6, 3);
+            const grain = fractalNoise2D(noiseSeed + 991, u * 40, v * 40, 2);
+            const speck = palette.speckle[Math.floor(macro * palette.speckle.length) % palette.speckle.length];
+            const macroAlpha = 0.3 + macro * 0.25;
+            const grainAlpha = (grain - 0.5) * 0.18;
+            let r = br + (speck[0] - br) * macroAlpha + 255 * grainAlpha;
+            let g = bg + (speck[1] - bg) * macroAlpha + 255 * grainAlpha;
+            let b = bb + (speck[2] - bb) * macroAlpha + 255 * grainAlpha;
+
+            // Macro elevation tint: sampled across the *whole visible ring*
+            // in real-world metres (not per texture repeat) — this is DEM
+            // relief used at the scale the P1 spike proved it has actual
+            // structure (§5.4 "authored floor + real horizon"), not invented
+            // per-tile detail a 50m texture repeat doesn't have.
+            if (dem) {
+                const wx = (u - 0.5) * groundDiameterM;
+                const wz = (v - 0.5) * groundDiameterM;
+                const elev = sampleElevation(dem, wx, wz);
+                const t = Math.max(0, Math.min(1, (elev - dem.elevationMin) / dem.elevationRange));
+                // Blend toward a light/shadow read of "higher ground catches
+                // more overhead sun" without a full slope-normal hillshade
+                // (which needs relief-per-texel this data doesn't have at
+                // texture scale) — sunUp scales how strongly elevation reads
+                // as brightness, so a low sun still tints without lying about
+                // directional shading it can't back up.
+                const tintR = ltR + (htR - ltR) * t;
+                const tintG = ltG + (htG - ltG) * t;
+                const tintB = ltB + (htB - ltB) * t;
+                const tintAlpha = 0.55;
+                const bright = 1 + (t - 0.5) * 0.3 * sunUp;
+                r = (r * (1 - tintAlpha) + tintR * tintAlpha) * bright;
+                g = (g * (1 - tintAlpha) + tintG * tintAlpha) * bright;
+                b = (b * (1 - tintAlpha) + tintB * tintAlpha) * bright;
+            }
+
+            rgb[idx] = Math.max(0, Math.min(255, Math.round(r)));
+            rgb[idx + 1] = Math.max(0, Math.min(255, Math.round(g)));
+            rgb[idx + 2] = Math.max(0, Math.min(255, Math.round(b)));
+        }
     }
 
-    const rng = seededRandom(site.zoom * 1000 + slug.length);
-    const speckleCount = Math.round((size * size) / 1600); // density scaled to canvas area
-    for (let i = 0; i < speckleCount; i++) {
-        const [sr, sg, sb] = palette.speckle[Math.floor(rng() * palette.speckle.length)];
-        const px = Math.floor(rng() * size), py = Math.floor(rng() * size);
-        const pw = 4 + Math.floor(rng() * 60), ph = 4 + Math.floor(rng() * 60);
-        const alpha = 0.35 + rng() * 0.3;
-        for (let y = Math.max(0, py); y < Math.min(size, py + ph); y++) {
-            for (let x = Math.max(0, px); x < Math.min(size, px + pw); x++) {
-                const idx = (y * size + x) * 3;
-                rgb[idx] = Math.round(rgb[idx] * (1 - alpha) + sr * alpha);
-                rgb[idx + 1] = Math.round(rgb[idx + 1] * (1 - alpha) + sg * alpha);
-                rgb[idx + 2] = Math.round(rgb[idx + 2] * (1 - alpha) + sb * alpha);
-            }
+    // Weathering streaks — thin darker cracks, same visual language as
+    // src/fx.js's proceduralGroundTexture, kept from the original pass.
+    const rng = seededRandom(noiseSeed + 5);
+    const streaks = Math.round((size * size) / 9000);
+    for (let i = 0; i < streaks; i++) {
+        let x = rng() * size, y = rng() * size;
+        for (let s = 0; s < 8; s++) {
+            x += (rng() - 0.5) * (size / 12);
+            y += (rng() - 0.5) * (size / 12);
+            const px = Math.max(0, Math.min(size - 1, Math.round(x)));
+            const py = Math.max(0, Math.min(size - 1, Math.round(y)));
+            const idx = (py * size + px) * 3;
+            rgb[idx] = Math.round(rgb[idx] * 0.7);
+            rgb[idx + 1] = Math.round(rgb[idx + 1] * 0.7);
+            rgb[idx + 2] = Math.round(rgb[idx + 2] * 0.7);
         }
     }
 
@@ -155,8 +299,12 @@ function buildAlbedo(slug, size) {
         biome: site.biome,
         meanColor,
         source: 'procedural',
+        hillshade: !!dem,
         note: 'Graded from sites.data.js albedoPalette, not sampled satellite imagery. ' +
-            'See ROADMAP-V2 §5.1 for the deferred Sentinel-2 path (fetch-imagery.mjs, not built).',
+            (dem
+                ? 'Includes a hillshade + hypsometric tint pass sampled from the cached DEM mosaic.'
+                : 'No cached DEM mosaic found — flat speckle base only, no hillshade/tint.') +
+            ' See ROADMAP-V2 §5.1 for the deferred Sentinel-2 path (fetch-imagery.mjs, not built).',
         generatedAt: new Date().toISOString(),
     };
 

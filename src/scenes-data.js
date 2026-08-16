@@ -9,6 +9,7 @@
    and re-exports the same surface this module has always exported.
    ═══════════════════════════════════════════════════════════════════ */
 
+import ghats from '../data/scenes/ghats.data.js';
 import warzone from '../data/scenes/warzone.data.js';
 import space from '../data/scenes/space.data.js';
 import mars from '../data/scenes/mars.data.js';
@@ -30,7 +31,7 @@ const SCENE_TEXTURE_BASE = ASSET_BASE + 'textures/';
 // SCENE CONFIGS
 // ═════════════════════════════════════════════════════════════════════
 
-const RAW_SCENE_CONFIGS = { warzone, space, mars, alien, desert, urban, jungle, arctic };
+const RAW_SCENE_CONFIGS = { ghats, warzone, space, mars, alien, desert, urban, jungle, arctic };
 
 // previewImage in data/scenes/*.data.js is ASSET_BASE-relative (JSON-literal
 // contract forbids baking in the resolved absolute URL); resolve it here,
@@ -49,6 +50,6 @@ const DEFAULT_SCENE = 'warzone';
 // Campaign sequence: each arena unlocks on completion of the previous one.
 // mars is last — the eventual Space Wars arena (orbital sats vs. CREON's
 // grid) picks up after it; not built yet, so mars stays the finale for now.
-const MISSION_ORDER = ['warzone', 'urban', 'desert', 'jungle', 'arctic', 'alien', 'space', 'mars'];
+const MISSION_ORDER = ['ghats', 'warzone', 'urban', 'desert', 'jungle', 'arctic', 'alien', 'space', 'mars'];
 
 export { SCENE_CONFIGS, DEFAULT_SCENE, MISSION_ORDER, SCENE_MODEL_BASE, SCENE_TEXTURE_BASE, ASSET_BASE };

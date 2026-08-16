@@ -3,11 +3,12 @@
   "size": 1024,
   "biome": "jungle",
   "meanColor": [
-    58,
-    55,
-    34
+    74,
+    71,
+    47
   ],
   "source": "procedural",
-  "note": "Graded from sites.data.js albedoPalette, not sampled satellite imagery. See ROADMAP-V2 §5.1 for the deferred Sentinel-2 path (fetch-imagery.mjs, not built).",
-  "generatedAt": "2026-08-16T18:22:21.239Z"
+  "hillshade": true,
+  "note": "Graded from sites.data.js albedoPalette, not sampled satellite imagery. Includes a hillshade + hypsometric tint pass sampled from the cached DEM mosaic. See ROADMAP-V2 §5.1 for the deferred Sentinel-2 path (fetch-imagery.mjs, not built).",
+  "generatedAt": "2026-08-16T21:31:23.151Z"
 }

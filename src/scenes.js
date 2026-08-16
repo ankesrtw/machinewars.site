@@ -393,7 +393,14 @@ export class World {
         const mat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0.0 });
         const sp = gc.specular || [0.06, 0.05, 0.04];
         mat.roughness = 1 - Math.min(0.5, (sp[0] + sp[1] + sp[2]));
-        if (gc.fallbackColor) mat.color = col3(gc.fallbackColor);
+        // fallbackColor is a MeshStandardMaterial `color`, which *multiplies*
+        // the albedo map once it loads — setting it unconditionally here (as
+        // opposed to the 'texture' branch below, which only sets it in the
+        // texture load's error callback) was crushing the loaded albedo
+        // toward black instead of only covering the pre-load/load-failure
+        // gap. Start white so the map shows at full brightness; fall back to
+        // the tint only if the load actually fails.
+        mat.color.set(0xffffff);
 
         const ground = new THREE.Mesh(geo, mat);
         ground.receiveShadow = true;
@@ -441,6 +448,8 @@ export class World {
             tex.repeat.set(gc.textureUScale || 8, gc.textureVScale || 8);
             tex.colorSpace = THREE.SRGBColorSpace;
             mat.map = tex; mat.needsUpdate = true;
+        }, undefined, () => {
+            if (gc.fallbackColor) mat.color = col3(gc.fallbackColor);
         });
     }
 

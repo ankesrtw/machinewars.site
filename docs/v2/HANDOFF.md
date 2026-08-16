@@ -27,9 +27,89 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** 🚧 **GATE P0 — PASSED** (2026-08-17). P0.1–P0.8 all done. P1 is unblocked
-— resume at P1.5 (see below). This is the first session where Phase 1+ work is
-actually clear to start.
+**⚠️ Direction change, decided this session (2026-08-17), overrides the ROADMAP-V2
+Phase 1/2 GIS-first plan below:** after seeing `/play/ghats/` rendered, the user
+decided the **hand-authored arena style (v1 — `jungle.data.js`, `warzone.data.js`,
+etc.) is what carries forward into Unity**, not the GIS/DEM-terrain pipeline.
+Reasoning: the goal was always "does real GIS data make the game look more
+modern/realistic," not GIS-data fidelity for its own sake — and after two rounds
+of fixing real bugs in the heightmap-ground rendering (see log below), the
+hand-authored arenas still look and play better. **The GIS pipeline
+(`tools/gis/*.mjs`, `_buildHeightmapGround` in `src/scenes.js`,
+`data/scenes/ghats.data.js`) is being kept as a research/reference track, not
+built on top of.** Do not resume ROADMAP-V2 Phase 1's remaining tasks (P1.6,
+GATE P1) or Phase 2 (Unity terrain A/B spike) as the next thing to do — **read
+this note before touching `docs/v2/TASKS.md`'s Phase 1/2 rows**, they're stale
+relative to this decision. The next real planning session needs to decide what
+replaces Phase 2+ in the roadmap (Unity port of the hand-authored arena style,
+almost certainly) — that rewrite hasn't happened yet, this session only stopped
+and recorded the decision.
+
+**P1.5 itself is still marked done** (2026-08-17) — `/play/ghats/` is live,
+playable, and was the first real render of P1.4's `ground.type: 'heightmap'`
+engine branch, which is what let this decision get made with real evidence
+instead of a guess. The work below is accurate; it's the *next step* that
+changed, not this task's completion.
+
+**What P1.5 built:** `data/scenes/ghats.data.js` — new scene config, `ground.type:
+'heightmap'` pointing at `assets/terrain/ghats/{heightmap,albedo}.{png,json}`
+(P1.3's bake). `ground.visibleRadiusM: 200` (radius; mesh diameter 400 — right at
+the camera's 400 far plane, no margin; if this pipeline is ever revived, tighten
+this) crops the 2400m bake to a visible ring; `ground.flatZoneRadius: 68` is the
+hand-authored combat floor inside it — coverBlocks/crates/barrels/sandbags/props
+hand-placed inside that radius, same density/shape language as `jungle.data.js`.
+Sky/CREON palette reused from `jungle.data.js` (no dedicated ghats skybox art
+exists); fog and lighting were re-tuned away from jungle's values (see log)
+because jungle's dense-canopy mood, copied verbatim, fogged out the real
+ridgeline this scene exists to show. `lighting.sunDirection` is the one
+genuinely site-specific value: derived from Agumbe's real latitude (13.5178N)
+at near-overhead solar elevation (~76deg, equinox-local-noon approximation).
+`src/scenes-data.js` imports `ghats` and adds it to `RAW_SCENE_CONFIGS` and to
+the **front** of `MISSION_ORDER` (`['ghats', 'warzone', ...]`) — matches
+`data/campaign.data.js`'s `startNode: 'ghats'`. `data/campaign.data.js`'s `ghats`
+node flipped `implemented: false → true`. `tools/gen-pages.mjs` generated
+`play/ghats/index.html` from the template (9th arena; sector count strings
+bumped 8→9 across all 9 pages, mechanical). `tools/data-to-json.mjs` emits
+`data/json/scenes/ghats.json` + a refreshed `campaign.json`.
+
+**Two real bugs found and fixed while chasing the "looks bad" feedback** (see
+log for the full trail — this matters for whoever next touches
+`_buildHeightmapGround` or `build-albedo.mjs`, GIS-revival or not):
+1. `tools/gis/build-albedo.mjs`'s original hard-edged-rectangle speckle texture,
+   stretched under 150–200m of real terrain, read as flat mud with no organic
+   variation. Rewrote it to multi-octave value noise (`fractalNoise2D`) for
+   close-up grain plus a macro elevation tint sampled across the *whole visible
+   ring* (not per-texture-tile — an interim per-tile hillshade attempt hit the
+   same "DEM is flat under ~400m" finding the P1 spike already made, just at
+   texture-tile scale instead of combat-arena scale).
+2. **The actual root cause of "flat and murky up close," found after the
+   texture rewrite still didn't fix it in-browser:** `_buildHeightmapGround`
+   (`src/scenes.js`) set `mat.color = col3(gc.fallbackColor)`
+   *unconditionally* on the ground material, rather than only in the albedo
+   texture's load-error callback (the pattern the sibling `'texture'` ground
+   branch already uses correctly). Since `MeshStandardMaterial.map` multiplies
+   against `.color`, this silently crushed the loaded albedo texture toward
+   black (`fallbackColor: [0.15, 0.2, 0.11]`) even after it loaded
+   successfully — no amount of texture-content tuning could have fixed that.
+   Fixed: `mat.color` now starts white, and `fallbackColor` only applies in
+   the texture loader's error callback, matching the texture branch. **This
+   fix is real and worth keeping regardless of the GIS-pipeline decision above**
+   — it's a latent bug in shared engine code, not GIS-specific, and would hit
+   any future `ground.type: 'heightmap'` scene the same way.
+
+**Not independently re-verified in-browser after the `mat.color` fix** — the
+user is testing manually and has decided to stop iterating on this pipeline
+regardless of outcome (see the direction-change note above), so this session
+did not spend another verification round-trip on it. `node --check
+src/scenes.js` and `gen-pages.mjs --check` both pass; the fix is mechanically
+correct (matches the working `'texture'` branch's own pattern exactly) even if
+unconfirmed pixel-for-pixel.
+
+**Not done / deliberately left as-is (moot now, but accurate):**
+- No dedicated ghats skybox texture — reuses `jungle_sky.png`.
+- No `emit-scene.mjs` generator script — hand-authored `ghats.data.js` directly
+  instead; `heightmap.json`'s fields don't map mechanically onto
+  `lighting`/`perimeter`/`coverBlocks`, those needed human judgment.
 
 **Gate verification, done this session:**
 - All 8 arenas load and play unchanged from `data/`: verified live via Playwright
@@ -289,25 +369,28 @@ not throwaway work.
 
 ## Next session — start here
 
-**🚧 GATE P0 has passed** (2026-08-17, see "Current state" above for the four
-conditions and how each was verified). Phase 1 is unblocked.
+**Do not resume P1.6 or GATE P1.** Read the "⚠️ Direction change" note at the
+top of "Current state" first — the user decided, after seeing `/play/ghats/`
+rendered and two rounds of real bug fixes, that the **hand-authored arena style
+(v1) is what carries forward into Unity**, not the GIS/DEM pipeline. The GIS
+work (`tools/gis/`, `_buildHeightmapGround`, `ghats.data.js`) stays in the repo
+as a working reference/research track but is not the production direction.
 
-**Task: P1.5** (see `docs/v2/TASKS.md` Phase 1) — `emit-scene.mjs` → a real
-`data/scenes/ghats.data.js`. P1.1–P1.4 already built the GIS pipeline (DEM fetch,
-heightmap/albedo bake, the `_buildHeightmapGround()` engine branch) but it was
-paused mid-P1.5 back before the P0 gate existed, specifically because writing a new
-scene config is exactly the kind of authoring work the gate was meant to block. Now
-unblocked. Steps: turn `assets/terrain/ghats/heightmap.json`'s metadata into a
-`ground`/`perimeter`/`lighting` stub (sun angle seeded from ghats's real latitude,
-biome palette from `sites.data.js`'s `albedoPalette`), then **hand-author the
-playable box** — ~200×200m of `coverBlocks`, spawn arcs, player start
-(ROADMAP-V2 §5.4). Add the `ghats` scene page via `tools/gen-pages.mjs`. Remember:
-`ground.visibleRadiusM` needs to be safely under the camera's 400 far plane (e.g.
-~300–340m radius, see P1.4's note below) — this is the **first time P1.4's
-heightmap displacement code actually renders**, so don't trust the math until
-you've looked at it. `data/campaign.data.js`'s `ghats` node is `implemented:false`
-today — flip it once the scene is real and playable.
-**Done when:** `/play/ghats/` loads and is playable end-to-end in the browser.
+**The actual next step is a planning session, not a build session:** ROADMAP-V2
+and `docs/v2/TASKS.md` Phase 1 (remaining: P1.6, GATE P1) and Phase 2 (Unity
+terrain A/B spike, which assumed the GIS heightmap was the terrain source) are
+now stale against this decision and need a rewrite before more implementation
+work happens. That rewrite is scoped work for whoever picks this up — it needs
+a real conversation about what Phase 2+ becomes (most likely: Unity port
+starting directly from the hand-authored `data/scenes/*.data.js` arenas,
+skipping the GIS-terrain detour entirely), not a unilateral edit. Start there:
+read ROADMAP-V2 §5–§6 with this decision in mind, and figure out with the user
+what the phase list should say now, before ticking any more boxes in
+`TASKS.md`.
+
+**Untouched by this decision:** `data/`'s content-authoring contract (P0),
+`save.js` v2, the campaign graph, and the mission schema — none of that assumed
+GIS terrain, all of it still applies to the hand-authored arena path forward.
 
 ### P0.8 note for whoever starts P1.5 or any future doc-facing session
 
@@ -570,3 +653,52 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   v1 save migration and the AND-gate were verified in P0.6 and not re-run here
   since nothing touched `save.js`/`campaign.data.js` since. **All four GATE P0
   conditions hold — Phase 1 is unblocked.**
+- **2026-08-17** — P1.5: `data/scenes/ghats.data.js` authored by hand (no
+  `emit-scene.mjs` generator built — see "Not done" above for why). `ground.type:
+  'heightmap'` wired to P1.3's `assets/terrain/ghats/` bake,
+  `visibleRadiusM: 200`/`flatZoneRadius: 68`, hand-placed cover/props inside the
+  authored floor per plan §5.4. Sky/lighting/palette reused from
+  `jungle.data.js` except `sunDirection`, derived from ghats's real latitude.
+  `src/scenes-data.js` gained the `ghats` import and put it first in
+  `MISSION_ORDER` (matches `campaign.data.js`'s `startNode`).
+  `campaign.data.js`'s `ghats` node flipped to `implemented: true`.
+  `gen-pages.mjs` generated `play/ghats/index.html` (9th arena; sector counts
+  8→9 across all pages, mechanical). `data-to-json.mjs`/`--check`,
+  `gen-pages.mjs --check`, and `stamp-assets.mjs` all clean. **First live
+  render of P1.4's heightmap ground code**, verified via Playwright/real
+  Chrome: reaches `playing` state with zero console errors, all three terrain
+  files fetch 200, and direct mesh inspection confirms genuine per-vertex
+  displacement (Y range 0–48.4m) with the albedo texture loaded — not a flat
+  placeholder. Screenshot shows a real ridgeline silhouette on both horizons
+  above a playable, hand-authored combat floor.
+- **2026-08-17 (continued)** — User on the P1.5 screenshot: "that actually
+  looks pretty bad." Two real fix rounds, each re-verified live via
+  Playwright: (1) fog density 0.014→0.004 + brighter `lighting` (jungle's
+  values were tuned for an 80m arena, not a 150–200m visible ring — fixed
+  sky/horizon visibility, ground still looked flat/muddy); (2) rewrote
+  `build-albedo.mjs`'s texture from hard-edged rectangle speckle to
+  `fractalNoise2D` organic noise + a macro elevation tint correctly scaled to
+  the ground mesh's real tile size (new `sites.data.js` fields
+  `groundVisibleRadiusM`/`groundTextureRepeats` — an interim per-tile
+  hillshade attempt got the scale wrong by ~6x and separately hit "DEM is flat
+  under ~400m" at texture-tile scale, same finding as the original P1 spike).
+  The rewritten texture looked correct in a static preview but **still looked
+  flat/murky in-browser**, which surfaced the actual bug: `_buildHeightmapGround`
+  (`src/scenes.js`) set `mat.color = fallbackColor` unconditionally instead of
+  only in the texture load's error callback (unlike the sibling `'texture'`
+  branch) — `MeshStandardMaterial.map` multiplies against `.color`, so the
+  loaded albedo was being crushed toward near-black (`fallbackColor: [0.15,
+  0.2, 0.11]`) regardless of what the texture actually contained. Fixed to
+  match the working branch's pattern. This fix is a real, general engine bug
+  (not GIS-specific) and is committed on that basis; it was not independently
+  re-verified in-browser this session (see below). `visibleRadiusM` also
+  raised 150→200 as part of round (1). User then decided — independent of
+  whether this last fix looks good, and reasoning that the GIS pipeline was
+  always meant to be evaluated as "does real terrain data make the game look
+  more modern," not pursued as an end in itself — that the **hand-authored
+  (v1) arena style is the real path forward into Unity**, and to stop
+  iterating on the GIS/DEM terrain pipeline here; it stays in the repo as a
+  working research track. Session ends with the `mat.color` fix committed but
+  unconfirmed pixel-for-pixel, and `docs/v2/TASKS.md`/ROADMAP-V2's Phase 1
+  (P1.6, GATE P1) and Phase 2 rows flagged stale pending a re-plan — see the
+  "⚠️ Direction change" note in "Current state" and "Next session" above.
