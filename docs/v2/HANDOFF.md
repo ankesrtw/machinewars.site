@@ -27,8 +27,40 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P0 — Data foundation (P0.1–P0.7 done, P0.8 next). P1 is paused at P1.4
-(P1.1–P1.4 done, P1.5 blocked until the P0 gate passes — see below).
+**Phase:** 🚧 **GATE P0 — PASSED** (2026-08-17). P0.1–P0.8 all done. P1 is unblocked
+— resume at P1.5 (see below). This is the first session where Phase 1+ work is
+actually clear to start.
+
+**Gate verification, done this session:**
+- All 8 arenas load and play unchanged from `data/`: verified live via Playwright
+  (real Chrome, `channel: 'chrome'`) — warzone/space/mars/alien/desert/urban/jungle/
+  arctic all boot, reach `AW.state === 'playing'`, zero console errors,
+  `AWDebug.world.cfg.name` matches each scene's `data/scenes/*.data.js` definition.
+  (Earlier sessions had only spot-checked 4/8 after P0.4; this is the first full
+  8/8 pass, done after P0.5–P0.7 also landed.)
+- `node tools/gen-pages.mjs --check` exits 0.
+- `node tools/data-to-json.mjs --check` round-trips clean (20 files: weapons,
+  enemies, campaign, 8 scenes, 1 wave set, 8 missions).
+- v1 save migrates with unlocks intact, graph AND-gate resolves correctly — both
+  verified in P0.6 (throwaway Node scripts + live browser, see that log entry;
+  not re-run this session since P0.7/P0.8 didn't touch `save.js` or the graph).
+
+**Status (P0.8):** Docs amended to match reality: `docs/ROADMAP.md` now points to
+`docs/v2/ROADMAP-V2.md` as the current plan (old doc kept for historical detail).
+`docs/track-a-web-android.md` marked cancelled — Capacitor/Android packaging never
+starts, Unity's own Android build (ROADMAP-V2 Phase 6) replaces it — noting the two
+items already salvaged into `src/main.js` before the pivot: scene detection
+(`detectSceneFromUrl()`) and the save system (superseded again by v2, see P0.6).
+Gamepad support (`pollGamepad()`) also already exists but was independent of this
+salvage decision, noted separately so it doesn't read as open work.
+`docs/track-e-gis.md` records the Option 1 → hybrid softening from the P1 spike:
+real DEM relief is imperceptible at combat-arena scale (27.9m/400m) but reads real
+at horizon scale (50.3m/1200m), so the revised plan is authored floor + real
+horizon, not full real-terrain-with-cover — building-footprint extrusion (OSM) is
+deferred, not part of the default site pipeline. `AGENTS.md` gained a **"web
+gameplay is frozen"** paragraph up top (repo is now a content-authoring tool; new
+gameplay systems belong in `data/` + Unity, not `src/`) and a new `## Content data
+(data/)` module-map section describing every `data/` subpath and what consumes it.
 **Status (P0.7):** `data/objectives.schema.md` documents the 11-type objective
 vocabulary hard cap (`survive_waves`, `kill_count`, `kill_type`, `protect`,
 `reach_zone`, `time_limit`, `no_damage`, `weapon_restriction`, `destroy_targets`,
@@ -57,7 +89,7 @@ tools/data-to-json.mjs` emits `data/json/missions/*.json` for all 8 (`m601`'s
 `rewards.unlockNode: null` — mars has no next node — round-trips fine, `null` is a
 valid JSON literal). `--check` on both `data-to-json.mjs` and `gen-pages.mjs` still
 exit 0 (this task touched no scene/page files).
-**Last commit:** (this session) P0.7 mission + objective schema.
+**Last commit:** (this session) P0.8 docs amendment + GATE P0 verification.
 
 ### What P0.2–P0.6 built (prior sessions)
 
@@ -257,14 +289,34 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.8** (see `docs/v2/TASKS.md` Phase 0) — amend the docs. Add the ROADMAP-V2
-pointer to `docs/ROADMAP.md`; record the Option 1 → hybrid softening in
-`docs/track-e-gis.md`; mark `docs/track-a-web-android.md` cancelled noting the two
-salvaged items; add to `AGENTS.md` that **web gameplay is frozen** and the repo is now
-an authoring tool, plus a `data/` section in the module map. **Done when:** a fresh
-session reading `AGENTS.md` alone would not start web gameplay work.
+**🚧 GATE P0 has passed** (2026-08-17, see "Current state" above for the four
+conditions and how each was verified). Phase 1 is unblocked.
 
-Then **GATE P0** — check all four conditions in `TASKS.md` before opening Unity.
+**Task: P1.5** (see `docs/v2/TASKS.md` Phase 1) — `emit-scene.mjs` → a real
+`data/scenes/ghats.data.js`. P1.1–P1.4 already built the GIS pipeline (DEM fetch,
+heightmap/albedo bake, the `_buildHeightmapGround()` engine branch) but it was
+paused mid-P1.5 back before the P0 gate existed, specifically because writing a new
+scene config is exactly the kind of authoring work the gate was meant to block. Now
+unblocked. Steps: turn `assets/terrain/ghats/heightmap.json`'s metadata into a
+`ground`/`perimeter`/`lighting` stub (sun angle seeded from ghats's real latitude,
+biome palette from `sites.data.js`'s `albedoPalette`), then **hand-author the
+playable box** — ~200×200m of `coverBlocks`, spawn arcs, player start
+(ROADMAP-V2 §5.4). Add the `ghats` scene page via `tools/gen-pages.mjs`. Remember:
+`ground.visibleRadiusM` needs to be safely under the camera's 400 far plane (e.g.
+~300–340m radius, see P1.4's note below) — this is the **first time P1.4's
+heightmap displacement code actually renders**, so don't trust the math until
+you've looked at it. `data/campaign.data.js`'s `ghats` node is `implemented:false`
+today — flip it once the scene is real and playable.
+**Done when:** `/play/ghats/` loads and is playable end-to-end in the browser.
+
+### P0.8 note for whoever starts P1.5 or any future doc-facing session
+
+`AGENTS.md` now opens with a "web gameplay is frozen" paragraph — P1.5 is
+explicitly-scoped `docs/v2/` task work (wiring a GIS site preview), which that
+paragraph carves out as still in scope; don't read it as blocking this task.
+`docs/ROADMAP.md`/`docs/track-a-web-android.md`/`docs/track-e-gis.md` were amended
+to point at ROADMAP-V2 and record decisions already made in this file's log — no
+new decisions were made in P0.8 itself, just documentation catching up to state.
 
 ### P0.7 note for whoever writes P0.8 (docs) or later touches missions
 
@@ -497,3 +549,24 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   (`implemented:false`) — flagged as a TODO in "Next session" for whoever authors
   `ocean`. No runtime wiring — Unity implements missions later (P3.1/P3.7); this task
   is data + validation only, consistent with the task's own scope.
+- **2026-08-17** — P0.8 + **GATE P0 verified and passed**. Docs: `docs/ROADMAP.md`
+  now points to `docs/v2/ROADMAP-V2.md` as the current plan.
+  `docs/track-a-web-android.md` marked cancelled (Capacitor/Android replaced by
+  Unity's own Android build), noting the two items already salvaged into
+  `src/main.js` pre-pivot (scene detection, save system — the latter superseded
+  again by v2) and separately noting gamepad support already exists too.
+  `docs/track-e-gis.md` records the authored-floor + real-horizon hybrid decision
+  from the P1 feasibility spike (already in this log under 2026-08-16), replacing
+  the original "Option 1" full-real-terrain framing; OSM building-footprint
+  extrusion deferred, not default. `AGENTS.md` gained a "web gameplay is frozen"
+  paragraph (repo is now a content-authoring tool; new gameplay work goes in
+  `data/` + Unity) and a `## Content data (data/)` module-map section. Gate
+  verification: a subagent drove real Chrome via Playwright through all 8 arenas
+  (warzone/space/mars/alien/desert/urban/jungle/arctic) with a seeded
+  `mw.save.v1` unlocking all slugs — all 8 reach `AW.state === 'playing'` with
+  zero console errors and `AWDebug.world.cfg.name` matching each scene's `data/`
+  definition (first full 8/8 pass; earlier sessions only spot-checked 4/8).
+  `gen-pages.mjs --check` and `data-to-json.mjs --check` both exit 0 (20 files).
+  v1 save migration and the AND-gate were verified in P0.6 and not re-run here
+  since nothing touched `save.js`/`campaign.data.js` since. **All four GATE P0
+  conditions hold — Phase 1 is unblocked.**

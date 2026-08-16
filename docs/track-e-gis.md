@@ -1,10 +1,28 @@
 # Track E — Real-world GIS arenas
 
 R&D. **Gated: do not start until Track B Phase 1 (data externalization) is
-complete.** See [ROADMAP.md](ROADMAP.md).
+complete.** See [ROADMAP.md](ROADMAP.md) — superseded by
+[docs/v2/ROADMAP-V2.md](v2/ROADMAP-V2.md) Phase 1/§5, which is now the current
+plan for this track; the gate condition still holds (renamed the **P0 gate**).
 
-Decision: **real cities as arenas, built as an offline generator, prototyped on
-web and shipped in Unity.**
+**Softened from "Option 1" to a hybrid, based on the P1 feasibility spike
+(2026-08-16, `docs/v2/HANDOFF.md`):** real DEM relief measured **27.9m over a
+400m combat-arena window** but **50.3m over a 1200m horizon window** — at
+combat scale, real elevation data is indistinguishable from a smooth tilted
+plane; it only reads as a real place once you're seeing 600m+ of it. Pure
+"real terrain, place cover on top" (as Option 1 originally implied) would have
+spent the whole GIS pipeline on relief the player can't perceive while
+fighting.
+
+**Revised decision: authored floor + real horizon**, not full Option 1.
+Combat area is entirely hand-authored (cover, spawns, player start — same as
+today's arenas); real DEM/imagery drives only the visible terrain ring and
+skyline out to the camera's far plane, blended to flat at the authored
+combat floor's edge. Building-footprint extrusion (the original §"Options
+considered" plan for OSM data) is **deferred** — the spike only exercised
+elevation tiles, not OSM footprints; revisit footprint extrusion only if a
+site's real skyline needs recognizable structures, not as a default for every
+site. See ROADMAP-V2 §5.4 for the authored/relief split this produced.
 
 ---
 

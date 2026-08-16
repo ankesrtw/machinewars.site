@@ -124,7 +124,7 @@ Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
   validator confirms every `objectives[].type` is one of the 11 and every
   `rewards.unlockNode` exists in the graph.
 
-- [ ] **P0.8 — Amend the docs** · **S**
+- [x] **P0.8 — Amend the docs** · **S** *(2026-08-17)*
   Add the ROADMAP-V2 pointer to `docs/ROADMAP.md`; record the Option 1 → hybrid softening
   in `docs/track-e-gis.md`; mark `docs/track-a-web-android.md` cancelled noting the two
   salvaged items; add to `AGENTS.md` that **web gameplay is frozen** and the repo is now
@@ -384,7 +384,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 7 | ⬜ |
+| P0 — Data foundation | 8 | 8 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |

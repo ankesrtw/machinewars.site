@@ -5,6 +5,15 @@ Web → Android → Unity v2 (+ Steam, + GIS).
 This is the index. Each track has its own doc and is meant to be started as its
 own working session — read this file plus the one track doc, not everything.
 
+**Superseded by [docs/v2/ROADMAP-V2.md](v2/ROADMAP-V2.md).** This v1 roadmap's
+Track A (web/Android via Capacitor) is cancelled — see
+[track-a-web-android.md](track-a-web-android.md)'s header. Tracks B/D/E survive
+in reshaped form as ROADMAP-V2 phases (data foundation, robot pipeline, GIS —
+see that doc's phase list); Track C (Unity) and Track F (Steam) are unchanged
+in substance, just resequenced behind the new Phase 0 data-foundation gate.
+**Read ROADMAP-V2 first** — this file and the track docs below are kept for
+historical detail ROADMAP-V2 doesn't repeat, not as the current plan.
+
 | Track | Doc | What | Target |
 |---|---|---|---|
 | **A** | [track-a-web-android.md](track-a-web-android.md) | Fix the web game, wrap it to Android via Capacitor | ~wk 12 |

@@ -1,5 +1,31 @@
 # Track A — Web fixes & Android wrapper
 
+**CANCELLED.** See [docs/v2/ROADMAP-V2.md](v2/ROADMAP-V2.md) — the project
+pivoted to Unity-native Android (Track C) instead of a Capacitor wrapper
+around the web build, and **web gameplay is now frozen** (AGENTS.md); the web
+repo is a content-authoring tool, not a shipping surface. The Capacitor
+packaging work below (§0.4 app-mode flag, §0.5 asset diet, §0.6 Play Console
+timing, all of Phase 3) was never started and will not be — Unity's own
+Android build (ROADMAP-V2 Phase 6) replaces it outright.
+
+**Two items were salvaged and already live in `src/main.js` before the
+cancellation** — kept here as-implemented reference, not as remaining work:
+- **§0.1 scene detection fix** — `detectSceneFromUrl()` (`src/main.js:244`)
+  now resolves `data-scene` → `?scene=` → path segment (filtered) →
+  `DEFAULT_SCENE`, exactly as specced below.
+- **§0.2 save system** — superseded again by ROADMAP-V2 §4.5 (`save.js` v2,
+  graph-aware `completeNode()`), but the original v1 `Save.load/save/patch`
+  shape below is what that v2 schema migrates *from*.
+
+**§0.3 gamepad support was also independently built** (`pollGamepad()`,
+`src/main.js:617`) — not part of this cancellation's salvage decision, just
+worth noting so a reader doesn't assume gamepad input is still open work.
+
+The rest of this document (Phase 0.4–0.6, Phase 3, verification) is preserved
+below **as historical spec only** — none of it applies to the current plan.
+
+---
+
 Ships ~week 12. See [ROADMAP.md](ROADMAP.md) for how this fits the whole plan.
 
 Capacitor packages the **existing JS game** into an APK. Unity is not involved.
