@@ -100,7 +100,7 @@ Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
   only `urban` complete, unlocked with `urban` **and** `arctic`; no cycles; every
   `requires`/`unlocks` target exists.
 
-- [ ] **P0.6 — `save.js` v2: migration + graph-aware unlocks** · **M**
+- [x] **P0.6 — `save.js` v2: migration + graph-aware unlocks** · **M** *(2026-08-17)*
   Bump to `v: 2`. **Add a v1→v2 migration** — the current `parsed.v !== 1 → defaults()`
   discard (`src/save.js:42`) would wipe real progress. Add `progress.nodesUnlocked` /
   `nodesCompleted` / `currentNode` alongside the existing arena fields (kept for the
@@ -384,7 +384,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 5 | ⬜ |
+| P0 — Data foundation | 8 | 6 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |

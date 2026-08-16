@@ -27,7 +27,7 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P0 — Data foundation (P0.1–P0.5 done). P1 is paused at P1.4 (P1.1–P1.4
+**Phase:** P0 — Data foundation (P0.1–P0.6 done). P1 is paused at P1.4 (P1.1–P1.4
 done, P1.5 blocked until the P0 gate passes — see below).
 **Status:** `WEAPONS`, `SCORE_VALUES`, `ENEMY_TYPES`, `WAVE_CONFIGS`, and
 `SCENE_CONFIGS` are all externalized. `data/enemies.data.js` holds the full per-type
@@ -47,10 +47,22 @@ resolved later by `src/scenes.js`), and re-exports the same
 `ghats_east`, `warzone`, `desert`, `urban`, `arctic`, `ocean`, `alien`, `grid`, `space`,
 `mars` — each with `requires`/`unlocks`/`act`/`map:{x,y,label}`, plus `implemented:false`
 on the 4 sites with no `data/scenes/` entry yet (`ghats`, `ghats_east`, `ocean`, `grid`),
-`outcome:'scripted_defeat'` on `grid`, and `locked:true`+`lockedReason` on `mars`. This is
-authored data only — nothing in `src/` reads it yet; `MISSION_ORDER` in `src/scenes-data.js`
-is untouched and still drives the hub. Wiring `save.js`/the hub to the graph is P0.6.
-**Last commit:** (this session) P0.5 author `data/campaign.data.js`.
+`outcome:'scripted_defeat'` on `grid`, and `locked:true`+`lockedReason` on `mars`.
+`src/save.js` is now `v:2` — added `progress.nodesUnlocked`/`nodesCompleted`/`currentNode`
+alongside the untouched v1 `arenasUnlocked`/`missionsCompleted` fields (which
+`buildScenePicker()` in `src/main.js` still reads directly — graph-driven hub UI is P4.1,
+not this file). `migrateV1()` derives the new fields from a v1 blob's
+`missionsCompleted`/`arenasUnlocked` instead of discarding it (the old `parsed.v !== 1 →
+defaults()` wipe is gone). `completeNode(nodeId)` marks a node completed then unions in
+every node whose `requires` (AND-list) are now satisfied by `nodesCompleted` — this is the
+graph-aware unlock, distinct from `nodesUnlocked` which the `UNLOCK_ALL_NODES` testing
+flag can pre-seed independent of real completion. `unlockNext()` (the old v1 API,
+`src/main.js:1197` still calls it on `gameWin()`) is kept as a shim — does exactly what it
+always did to the v1 fields, and additionally calls `completeNode()` so the graph fields
+advance too when the completed scene is also a campaign node (true for all 8 today).
+`UNLOCK_ALL_ARENAS` renamed `UNLOCK_ALL_NODES`, still `true` (left on for authoring),
+now also blanket-unlocks every campaign node, not just arenas.
+**Last commit:** (this session) P0.6 save.js v2 migration + `completeNode()`.
 
 P1's heightmap ground engine code (`_buildHeightmapGround()` in `src/scenes.js`, P1.4)
 still exists and is still **unwired and unverified in the browser** — no scene config sets
@@ -214,28 +226,43 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.6** (see `docs/v2/TASKS.md` Phase 0) — `save.js` v2: add a v1→v2 migration
-(current code discards on version mismatch — would wipe real progress), add
-`progress.nodesUnlocked`/`nodesCompleted`/`currentNode` reading `data/campaign.data.js`,
-replace `unlockNext()` with `completeNode(nodeId)` that unions in every node whose
-`requires` are now satisfied (keep `unlockNext` as a shim for `src/main.js:1195`), rename
-`UNLOCK_ALL_ARENAS` → `UNLOCK_ALL_NODES` (left on for authoring). Test both a hand-seeded
-v1 blob migrating with unlocks preserved, and completing `urban` then `arctic` unlocking
-`ocean` (AND-gate) and nothing earlier.
+**Task: P0.7** (see `docs/v2/TASKS.md` Phase 0) — mission + objective schema.
+`data/missions/<id>.data.js` per ROADMAP-V2 §4.3, `rewards.unlockNode` (not
+`unlockArena`). Author the 11-type objective vocabulary as a documented enum in
+`data/objectives.schema.md` —**hard cap, do not add a 12th without deleting one.** One
+real mission per implemented site (8 today: warzone, desert, urban, arctic, alien, space,
+mars, plus jungle/ghats — check which slug the mission targets, since `jungle` hasn't
+been split into `ghats`/`ghats_east` yet, see P0.4's note), plus `m401` for `grid` with
+its `finale` block (§4.4). No runtime — Unity implements it; this task authors data and
+validates shape only. **Done when:** `data-to-json.mjs` emits valid JSON for every
+mission, and a validator confirms every `objectives[].type` is one of the 11 and every
+`rewards.unlockNode` exists in `data/campaign.data.js`'s graph.
 
-Then continue down Phase 0 in order: P0.7 (missions) → P0.8 (docs) → **GATE P0**.
+Then P0.8 (docs) → **GATE P0**.
 
-### P0.5 note for whoever writes P0.6
+### P0.6 note for whoever writes P0.7
+
+`completeNode()`'s unlock scan is O(nodes), fine at 11 nodes — don't worry about it at
+this scale. If P0.7's missions want to call `Save.completeNode()` on mission-complete
+(via `rewards.unlockNode`), note `completeNode(nodeId)` takes the **node id being
+completed**, not the node it unlocks — `rewards.unlockNode` in a mission file names what
+*should* become reachable, but the actual unlock still flows through completing the
+node the mission belongs to, same AND-gate-checked way. Don't wire a mission to directly
+force-unlock a node — let `completeNode()`'s requires-scan do it, or the AND-gate on
+nodes like `ocean` breaks.
+
+`src/save.js`'s `campaign.nodes[completedSceneId]` check in `unlockNext()` assumes every
+scene id equals a campaign node id — true today (all 8 implemented arenas share their id
+with a `data/campaign.data.js` node) but worth re-checking if a future scene/node ever
+diverge (e.g. one scene reused across two narrative nodes).
+
+### P0.5 note (still relevant)
 
 `data/campaign.data.js` graph validated with a throwaway Node script (no cycles, all
 `requires`/`unlocks` targets exist, `ocean`'s AND-gate correctly stays locked with only
 `urban` complete and unlocks with `urban`+`arctic`) — script was deleted after, not
-committed; re-derive it if P0.6 needs the same checks wired into a real tool. `act`
-values are `act01`..`act06` (six acts, not one per node — `ghats`/`ghats_east` share
-`act01`, `warzone`/`desert` share `act02`, `urban`/`arctic`/`ocean` share `act03`,
-`alien`/`grid` share `act04`) — matches the roadmap's narrative-act framing, not a
-per-site enum. `map:{x,y,label}` coordinates are placeholders (rough 0..1 layout guesses,
-not derived from anything) — P4.1 (hub map UI) is free to override them wholesale.
+committed. `act` values are `act01`..`act06` (six acts, not one per node). `map:{x,y,label}`
+coordinates are placeholders — P4.1 (hub map UI) is free to override them wholesale.
 
 ### P0.4 note for whoever writes `ghats.data.js` (P0.5/P1.5)
 
@@ -384,3 +411,25 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   tools/data-to-json.mjs` and `--check` both pass (new `data/json/campaign.json`
   generated and round-trips clean); `gen-pages.mjs --check` unaffected (still 0, this task
   didn't touch scenes). Nothing in `src/` consumes the graph yet — that's P0.6.
+- **2026-08-17** — P0.6: `src/save.js` bumped to `v:2`. Added `migrateV1()` — a v1 blob's
+  `missionsCompleted`/`arenasUnlocked` now derive `nodesCompleted`/`nodesUnlocked`/
+  `currentNode` instead of being discarded (old code did `parsed.v !== 1 → defaults()`,
+  which would have wiped real progress on every future version bump). Added
+  `completeNode(nodeId)`, the graph-aware unlock: marks a node completed, then unions in
+  every node whose `requires` are now fully satisfied by `nodesCompleted`. Kept
+  `unlockNext()` as a back-compat shim for `src/main.js`'s `gameWin()` — untouched v1
+  behavior, plus now also calls `completeNode()` so graph fields advance in lockstep.
+  Renamed `UNLOCK_ALL_ARENAS` → `UNLOCK_ALL_NODES` (still `true`), now blanket-unlocks
+  campaign nodes too. Tested with two isolated Node scripts using a `localStorage` shim
+  (deleted after, not committed): a hand-seeded v1 blob migrates correctly with real
+  settings/stats/progress preserved (both with the unlock flag on and off), and
+  `completeNode('urban')` then `completeNode('arctic')` unlocks `ocean` while
+  `completeNode('urban')` alone does not — the AND-gate, exercised both through
+  `nodesUnlocked` state and independently via `campaign.nodes[id].requires.every(...)`
+  math. Live-verified in a real browser via Playwright: hub picker renders all 8 cards,
+  `/play/warzone/` boots to `AW.state === 'playing'` with zero console errors throughout,
+  and a forced settings-patch write round-trips valid `v:2` JSON in `localStorage` with
+  `nodesUnlocked`/`nodesCompleted`/`currentNode` all present and correctly populated.
+  `gen-pages.mjs --check` and `data-to-json.mjs --check` both still pass (this task
+  touched no `data/` files). `buildScenePicker()`/hub UI unchanged — still reads the v1
+  fields directly, as intended; graph-driven hub UI is P4.1.
