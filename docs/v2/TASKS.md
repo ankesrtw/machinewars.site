@@ -60,8 +60,7 @@ Plan ref: [§4](ROADMAP-V2.md#4-data-schema-work-web-repo--the-authoring-tool)
   **Done when:** `node tools/data-to-json.mjs --check` runs clean on an empty/near-empty
   `data/` and exits 0.
 
-- [ ] **P0.2 — Externalize `WEAPONS` + `SCORE_VALUES`** · **S** *(start here: smallest
-  blast radius, proves the pattern)*
+- [x] **P0.2 — Externalize `WEAPONS` + `SCORE_VALUES`** · **S** *(2026-08-17)*
   `WEAPONS` (`src/main.js:40`) → `data/weapons.data.js`. `SCORE_VALUES`
   (`src/main.js:46`) → folded into `data/enemies.data.js` as a per-type `score`.
   Note `HUD.init(AW, WEAPONS)` (`src/main.js:347`) takes it by injection already — no
@@ -385,7 +384,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
-| P0 — Data foundation | 8 | 1 | ⬜ |
+| P0 — Data foundation | 8 | 2 | ⬜ |
 | P1 — GIS + first site | 6 | 4 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |

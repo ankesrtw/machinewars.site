@@ -27,12 +27,13 @@ done, say exactly where it stopped and what breaks.
 
 ## Current state
 
-**Phase:** P0 — Data foundation (P0.1 done). P1 is paused at P1.4 (P1.1–P1.4 done,
+**Phase:** P0 — Data foundation (P0.1, P0.2 done). P1 is paused at P1.4 (P1.1–P1.4 done,
 P1.5 blocked until the P0 gate passes — see below).
-**Status:** `data/` scaffolded — `data/README.md` (the contract) + `tools/data-to-json.mjs`
-exist, `--check` passes clean on the still-empty `data/`. Nothing has been externalized
-into it yet (`SCENE_CONFIGS`, `WEAPONS`, etc. are still in `src/`, untouched).
-**Last commit:** (this session) P0.1 `data/` scaffold + `tools/data-to-json.mjs`.
+**Status:** `WEAPONS` and `SCORE_VALUES` are externalized to `data/weapons.data.js` and
+`data/enemies.data.js` (score-only stub; P0.3 fills in the rest). `src/main.js` imports
+both and derives `SCORE_VALUES` from `enemies.data.js`'s per-type `score` field.
+`SCENE_CONFIGS`, `ENEMY_TYPES`, `WAVE_CONFIGS` etc. are still in `src/`, untouched.
+**Last commit:** (this session) P0.2 externalize `WEAPONS` + `SCORE_VALUES`.
 
 P1's heightmap ground engine code (`_buildHeightmapGround()` in `src/scenes.js`, P1.4)
 still exists and is still **unwired and unverified in the browser** — no scene config sets
@@ -196,27 +197,24 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P0.2** (see `docs/v2/TASKS.md` Phase 0) — externalize `WEAPONS` + `SCORE_VALUES`.
-Smallest blast radius, proves the `data/` pattern end-to-end before the bigger P0.3/P0.4
-tasks.
+**Task: P0.3** (see `docs/v2/TASKS.md` Phase 0) — externalize `ENEMY_TYPES` +
+`WAVE_CONFIGS` as named sets.
 
-1. `WEAPONS` (`src/main.js:40`) → `data/weapons.data.js`. `SCORE_VALUES` (`src/main.js:46`)
-   → fold into a new `data/enemies.data.js` as a per-type `score` field (P0.3 will add the
-   rest of `enemies.data.js`; don't build the full file now, just enough to hold `score`
-   per the roadmap's §4.1 table — check `ENEMY_TYPES` at `src/enemies.js:165` for the type
-   keys `SCORE_VALUES` needs to align with).
-2. `HUD.init(AW, WEAPONS)` (`src/main.js:347`) already takes `WEAPONS` by injection — no
-   HUD-side change needed, just repoint the import.
-3. Verify: `node tools/data-to-json.mjs --check` picks up the two new files cleanly; then
-   in-browser — all three weapons fire, switch via mouse wheel **and** gamepad LB/RB,
-   reload correctly, and score still increments per kill type. This is a real gameplay
-   change (data now lives outside `src/`), so this one needs the browser check, not just
-   `gen-pages.mjs --check`.
-4. Commit, tick P0.2, update this file.
+1. `ENEMY_TYPES` (`src/enemies.js:165`) → merge into `data/enemies.data.js` (which
+   currently holds only the `score` field per type from P0.2 — extend each entry with
+   `hp`, `speed`, `damage`, `modelScale`, `eyeHeight`, `eyeColor`, etc., keeping `score`
+   alongside them, not a separate lookup).
+2. `WAVE_CONFIGS` (`src/enemies.js:194`) → `data/waves/<setId>.data.js` — **named sets,
+   not one global array.** Seed with `classic_10` reproducing today's exact 10 waves.
+3. Update both consumers: `src/enemies.js:250` and `src/main.js:1128`. Have
+   `WaveManager` take a `waveSet` id, defaulting to `classic_10`.
+4. Verify: a full 10-wave run completes with identical spawn composition to today, boss
+   on wave 10 — needs the browser, not just `gen-pages.mjs --check`.
+5. Commit, tick P0.3, update this file.
 
-Then continue down Phase 0 in order: P0.3 (enemies/waves) → **P0.4 (scenes, the big one —
-1,501 LOC, this is what unblocks resuming P1.5/`ghats`)** → P0.5 (campaign graph) → P0.6
-(save v2 migration) → P0.7 (missions) → P0.8 (docs).
+Then continue down Phase 0 in order: **P0.4 (scenes, the big one — 1,501 LOC, this is
+what unblocks resuming P1.5/`ghats`)** → P0.5 (campaign graph) → P0.6 (save v2 migration)
+→ P0.7 (missions) → P0.8 (docs).
 
 **P0.4 note relevant to P1**: when this splits `SCENE_CONFIGS`, the split should produce a
 `data/scenes/ghats.data.js` slot even though `ghats` doesn't exist as a playable site yet
@@ -285,3 +283,16 @@ playable box, first live look at P1.4's heightmap ground code actually rendering
   silently drops functions/`undefined` instead of erroring). `--check` passes clean on
   empty `data/`. Smoke-tested with a throwaway file, removed after — `data/` still empty,
   which is correct for this task (P0.2 is what actually externalizes anything).
+- **2026-08-17** — P0.2: `WEAPONS` → `data/weapons.data.js`; `SCORE_VALUES` → derived at
+  import time from a new `data/enemies.data.js` (score-only stub, `{scout:{score:100},
+  ...}` — P0.3 fills in the rest of `ENEMY_TYPES`). `src/main.js` imports both;
+  `HUD.init(AW, WEAPONS)` needed no change (already takes `WEAPONS` by injection).
+  `data-to-json.mjs --check` and `gen-pages.mjs --check` both pass. Verified live in
+  `/play/warzone/` via Playwright (installed to the session scratchpad, not the repo):
+  entered the arena, confirmed weapon switch via mouse wheel **and** number keys
+  (RIFLE→SHOTGUN→MINIGUN→...), ammo counts match `weapons.data.js` (30/8/100), shotgun
+  fire-to-empty→auto-reload→`R`-reload all correct, zero console errors throughout.
+  Did not land a kill on a moving enemy (blind Playwright aim vs. cover-seeking AI), so
+  score-increment-on-kill was verified by static derivation check instead (`SCORE_VALUES`
+  computed from the new file matches the original literal exactly) plus reading
+  `addScore()` — no behavior change there, only where `SCORE_VALUES` comes from.

@@ -1,0 +1,17 @@
+{
+  "scout": {
+    "score": 100
+  },
+  "grunt": {
+    "score": 200
+  },
+  "heavy": {
+    "score": 500
+  },
+  "drone": {
+    "score": 150
+  },
+  "boss": {
+    "score": 1000
+  }
+}

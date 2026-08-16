@@ -1,0 +1,35 @@
+[
+  {
+    "name": "RIFLE",
+    "ammo": 30,
+    "damage": 1,
+    "fireRate": 120,
+    "reloadTime": 2000,
+    "pellets": 1,
+    "spread": 0,
+    "auto": false,
+    "sound": "gunshot"
+  },
+  {
+    "name": "SHOTGUN",
+    "ammo": 8,
+    "damage": 1,
+    "fireRate": 600,
+    "reloadTime": 2500,
+    "pellets": 7,
+    "spread": 0.06,
+    "auto": false,
+    "sound": "shotgun"
+  },
+  {
+    "name": "MINIGUN",
+    "ammo": 100,
+    "damage": 1,
+    "fireRate": 60,
+    "reloadTime": 4000,
+    "pellets": 1,
+    "spread": 0.025,
+    "auto": true,
+    "sound": "minigun"
+  }
+]

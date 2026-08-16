@@ -17,6 +17,8 @@ import { withVersion, BUILD_ID } from './version.js';
 import { Save } from './save.js';
 import { spawnProjectile, projectileGeometries } from './projectiles.js';
 import { clampPitch } from './math.js';
+import WEAPONS from '../data/weapons.data.js';
+import ENEMY_SCORE_DATA from '../data/enemies.data.js';
 
 // Used only when a scene config hasn't loaded yet; matches no real arena, so it
 // exists purely to keep the clamps finite. Was duplicated as a literal here and
@@ -36,14 +38,12 @@ const QUALITY_PRESETS = {
     high:   { shadowMapSize: 2048, bloom: true,  particleScale: 1.0,  pixelRatioCap: 2.0, radarFps: 30, bloomStrength: 0.8 },
 };
 
-// ── Weapons ──────────────────────────────────────────────────────────
-const WEAPONS = [
-    { name: 'RIFLE',   ammo: 30,  damage: 1, fireRate: 120, reloadTime: 2000, pellets: 1, spread: 0,     auto: false, sound: 'gunshot' },
-    { name: 'SHOTGUN', ammo: 8,   damage: 1, fireRate: 600, reloadTime: 2500, pellets: 7, spread: 0.06,  auto: false, sound: 'shotgun' },
-    { name: 'MINIGUN', ammo: 100, damage: 1, fireRate: 60,  reloadTime: 4000, pellets: 1, spread: 0.025, auto: true,  sound: 'minigun' },
-];
-
-const SCORE_VALUES = { scout: 100, grunt: 200, heavy: 500, drone: 150, boss: 1000 };
+// ── Weapons + score values ──────────────────────────────────────────
+// WEAPONS: data/weapons.data.js. SCORE_VALUES: derived from
+// data/enemies.data.js's per-type `score` field (P0.2).
+const SCORE_VALUES = Object.fromEntries(
+    Object.entries(ENEMY_SCORE_DATA).map(([type, def]) => [type, def.score])
+);
 
 // ── Global game state ──────────────────────────────────────────────────
 const AW = {
