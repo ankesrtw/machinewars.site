@@ -165,7 +165,7 @@ Plan ref: [§5](ROADMAP-V2.md#5-gis-terrain-pipeline)
   needs it; ground albedo isn't required to test the heightmap/horizon question this
   phase's gate is actually asking.
 
-- [ ] **P1.3 — `build-heightmap.mjs` + `build-albedo.mjs`** · **M**
+- [x] **P1.3 — `build-heightmap.mjs` + `build-albedo.mjs`** · **M** *(2026-08-16)*
   GeoTIFF → 1025²/2049² 16-bit PNG heightmap **plus a metadata JSON** (m/px, min/max
   elevation, origin lat/lon) — the metadata is what lets the same file drive Unity later,
   so get it right now. Imagery → tiled ground albedo graded to the site palette, plus a
@@ -378,7 +378,7 @@ convincing procedural silhouette** — always confirm you're looking at a real m
 | Phase | Tasks | Done | Gate |
 |---|---|---|---|
 | P0 — Data foundation | 8 | 0 | ⬜ |
-| P1 — GIS + first site | 6 | 0 | ⬜ |
+| P1 — GIS + first site | 6 | 3 | ⬜ |
 | P2 — Unity + terrain A/B | 5 | 0 | ⬜ |
 | P3 — Vertical slice | 7 | 0 | ⬜ |
 | P4 — Campaign spine | 7 | 0 | ⬜ **← MSP** |

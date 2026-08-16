@@ -36,6 +36,20 @@ export default {
         tileGrid: { cols: 3, rows: 3 }, // tiles around the center tile, dx/dy in [-1,1]
         playableExtentM: 400,
         horizonExtentM: 2400,
+        biome: 'jungle',
+        // Ground palette for build-albedo.mjs — graded from Western Ghats reference
+        // photos (wet laterite soil + dense canopy leaf litter), not sampled imagery.
+        // See docs/v2/HANDOFF.md P1.3 note: fetch-imagery.mjs (Sentinel-2) was deferred,
+        // so this is the procedural stand-in until real albedo imagery is worth the cost.
+        albedoPalette: {
+            base: [58, 54, 34],       // damp earth/leaf-litter base
+            speckle: [
+                [72, 64, 38],  // dry leaf litter
+                [40, 46, 28],  // moss/shadow
+                [90, 78, 46],  // laterite soil highlight
+                [30, 34, 22],  // deep shade
+            ],
+        },
         source: {
             provider: 'aws-terrain-tiles',
             format: 'terrarium',

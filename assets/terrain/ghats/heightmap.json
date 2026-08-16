@@ -1,0 +1,23 @@
+{
+  "slug": "ghats",
+  "size": 1025,
+  "extentM": 2400,
+  "metersPerTexel": 2.34375,
+  "elevationMin": 619.5,
+  "elevationMax": 704.05859375,
+  "elevationRange": 84.55859375,
+  "originLatLon": [
+    13.5178,
+    75.0906
+  ],
+  "sourceMppAtCenter": 4.6449699992766025,
+  "source": {
+    "provider": "aws-terrain-tiles",
+    "format": "terrarium",
+    "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+    "decode": "(R*256 + G + B/256) - 32768",
+    "attribution": "AWS Terrain Tiles (Mapzen terrarium format)"
+  },
+  "generatedAt": "2026-08-16T18:13:34.353Z",
+  "notes": "heightmap.png is a 16-bit grayscale PNG, texel 0 = elevationMin meters, 65535 = elevationMax meters. meters = elevationMin + (texel/65535) * elevationRange. metersPerTexel * (size-1) = extentM, the square ground footprint this heightmap covers, centered on originLatLon."
+}

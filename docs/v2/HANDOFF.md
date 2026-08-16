@@ -28,11 +28,46 @@ done, say exactly where it stopped and what breaks.
 ## Current state
 
 **Phase:** P1 — GIS pipeline + first site (web preview)
-**Status:** P1.1 + P1.2 done. Ghats DEM tiles fetch + decode; regression numbers hold.
-**Last commit:** (this session) Port DEM fetch/decode tooling from the spike
+**Status:** P1.1 + P1.2 + P1.3 done. Ghats heightmap + albedo baked to
+`assets/terrain/ghats/`, metadata round-trips against the live decoder.
+**Last commit:** (this session) P1.3 build-heightmap.mjs + build-albedo.mjs
 
-`tools/gis/cache/` is gitignored (confirmed via `git check-ignore`). Spike decoders are
-preserved in `docs/v2/spike/` — already ported, keep them as reference only from here.
+`tools/gis/cache/` is gitignored (confirmed via `git check-ignore`). `assets/terrain/` is
+**not** gitignored — baked outputs commit (confirmed via `git check-ignore -v`, exit 1).
+Spike decoders are preserved in `docs/v2/spike/` — already ported, keep them as reference
+only from here.
+
+### What P1.3 built
+
+- `tools/gis/build-heightmap.mjs` — imports `loadMosaic`/`windowStats` from
+  `decode-terrarium.mjs` (P1.2 built these exports for exactly this). Crops the mosaic to
+  `horizonExtentM` around the site center, bilinear-resamples to 1025² (default) or 2049²,
+  normalizes elevation min..max into a 16-bit grayscale range, writes a **hand-rolled PNG**
+  (zlib `deflateSync` only, no npm deps — same discipline as `decode-terrarium.mjs`'s
+  hand-rolled reader) to `assets/terrain/<slug>/heightmap.png`, plus `heightmap.json`:
+  `metersPerTexel`, `elevationMin/Max/Range`, `originLatLon`, `extentM`, the source block —
+  **this is the file Unity's `TerrainData.SetHeights` will consume later**, so the
+  denormalization formula is spelled out in the JSON itself (`notes` field).
+  `--check` re-derives min/max live from the mosaic and diffs against the saved JSON —
+  catches silent drift if `sites.data.js` or the decoder changes later. Verified for ghats:
+  elevation 619.5..704.1m (range 84.6m) over the 2400m horizon window — `--check` passes.
+- `tools/gis/build-albedo.mjs` — **procedural, not Sentinel-2** (see decision below). Grades
+  a tiled 1024² albedo from a new `sites.data.js` field, `albedoPalette` (`base` colour +
+  4 `speckle` colours), using the same seeded-rectangle-speckle approach as
+  `src/fx.js`'s in-browser `proceduralGroundTexture`, but as an offline file-writing PNG
+  encoder instead of a Canvas. Writes `albedo.png` + `albedo.json` (biome id, mean colour
+  for lighting/fog tinting). Added `ghats: { biome: 'jungle', albedoPalette: {...} }` to
+  `sites.data.js`, graded from reference photos (damp laterite soil + leaf litter), not
+  sampled imagery.
+- Both scripts follow existing `tools/gis/*.mjs` conventions exactly: `--site=`, `--dry-run`,
+  `--check` (no network, diffs against live state), zero deps, header comment stating *why*.
+
+**Decision this session (deliberate, matches the HANDOFF's own "decide before starting"
+flag):** shipped **procedural albedo**, deferred `fetch-imagery.mjs` again. Reasoning
+unchanged from P1.2's note — ground albedo doesn't gate the question P1 is actually asking
+(does the heightmap + horizon read as a real place); it's orthogonal to whether DEM relief
+sells the site. If the procedural grade reads as flat/fake once P1.4/P1.5 put a camera in
+the scene, that's the signal to build `fetch-imagery.mjs` — not before.
 
 ### What P1.1/P1.2 built
 
@@ -101,28 +136,32 @@ not throwaway work.
 
 ## Next session — start here
 
-**Task: P1.3** (see `docs/v2/TASKS.md`) — `build-heightmap.mjs` + `build-albedo.mjs`.
+**Task: P1.4** (see `docs/v2/TASKS.md`) — the `ground.type: 'heightmap'` branch in
+`src/scenes.js:280` (`_buildGround()`). Re-read "Watch out for" below before touching it —
+far plane is 400, and this must be the *only* engine change P1 requires.
 
-1. `tools/gis/build-heightmap.mjs` — import `loadMosaic`/`windowStats` from
-   `tools/gis/decode-terrarium.mjs` (already exported for this). Crop the mosaic to
-   `horizonExtentM` around the site center, resample to 1025² or 2049², write as a
-   16-bit PNG to `assets/terrain/ghats/`. Write the metadata JSON alongside it — **get
-   this right, it's what makes the file portable to Unity later**: m/px, min/max
-   elevation (already computed by `windowStats`), origin lat/lon, the extent it covers.
-2. `tools/gis/build-albedo.mjs` needs imagery this session doesn't have —
-   `fetch-imagery.mjs` (Sentinel-2) was deliberately skipped in P1.2 (see note above). Two
-   options: build `fetch-imagery.mjs` first, or ship P1.3 with a flat/graded procedural
-   albedo keyed off the biome palette and defer real imagery. Decide before starting;
-   don't let it block the heightmap half.
-3. Test the output round-trips: read the metadata JSON back, confirm min/max elevation
-   matches what `decode-terrarium.mjs --site=ghats` printed this session.
+1. Read `assets/terrain/ghats/heightmap.json` + `albedo.json` — both exist now, written
+   this session. `heightmap.json.notes` spells out the denormalization formula
+   (`meters = elevationMin + (texel/65535) * elevationRange`); `metersPerTexel *
+   (size-1) === extentM`, the square ground footprint centered on `originLatLon`.
+2. New branch in `_buildGround()`: when `gc.type === 'heightmap'`, load
+   `heightmap.png`/`heightmap.json` for the site instead of the seeded-noise
+   displacement, size the `PlaneGeometry` to `extentM`, displace vertices from the
+   16-bit texel values (denormalized per the formula above), and use `albedo.png` as
+   the texture map (same texture-load path already used for `gc.type === 'texture'`).
+3. **Watch the far-plane mismatch**: `horizonExtentM` is 2400 but camera far plane is
+   400 (`src/main.js`) — per plan §5.4/HANDOFF's own prior note, the visible heightmap
+   ring must be clipped to fit inside 400, or the far plane becomes a quality-preset
+   field first. Decide which before wiring the scene; don't let terrain silently vanish
+   past the far plane like the CREON billboard bug.
+4. Verify: existing 8 arenas unaffected (`node tools/gen-pages.mjs --check` + open one
+   arena), and a heightmap ground renders in a throwaway test scene or a minimal
+   `data/scenes/ghats` stub (full stub is P1.5's job — don't build it early here).
 
-**Done when:** Ghats heightmap + albedo exist in `assets/terrain/ghats/` with metadata
-that round-trips (per `TASKS.md`).
+**Done when:** the existing 8 arenas are unaffected and a heightmap ground renders (per
+`TASKS.md`).
 
-**Then P1.4** — the `ground.type: 'heightmap'` branch in `src/scenes.js:280`. Re-read
-"Watch out for" below before touching it — far plane is 400, and this must be the
-*only* engine change P1 requires.
+**Then P1.5** — `emit-scene.mjs` → `data/scenes/ghats.data.js`, hand-authored playable box.
 
 ### Watch out for
 
@@ -148,3 +187,10 @@ that round-trips (per `TASKS.md`).
   relief numbers hold (27.8m/50.3m). Used AWS Terrarium instead of roadmap-specified
   Copernicus/Sentinel — deliberate, see "Deviation from the roadmap" above.
   `fetch-imagery.mjs` deferred to P1.3.
+- **2026-08-16** — P1.3: `tools/gis/build-heightmap.mjs` (crop/resample/normalize the
+  mosaic to a 16-bit PNG + metadata JSON, hand-rolled PNG writer, zero deps) and
+  `tools/gis/build-albedo.mjs` (procedural tiled albedo from a new `albedoPalette` field
+  on `sites.data.js`, `fetch-imagery.mjs`/Sentinel-2 deferred again — deliberate, doesn't
+  gate the P1 relief question). Ghats heightmap (619.5–704.1m over 2400m) + albedo
+  (jungle biome) baked to `assets/terrain/ghats/`; both `--check` flags pass, round-trips
+  verified against the live decoder.
