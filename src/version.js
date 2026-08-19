@@ -23,7 +23,7 @@
    HTML and JS are `no-cache`, so a fresh page load always sees the
    current id and therefore the current assets.
    ═══════════════════════════════════════════════════════════════════ */
-export const BUILD_ID = '2026-08-16-7caaed0f874d';
+export const BUILD_ID = '2026-08-19-13175b0bf20a';
 
 // Append the build id to an asset URL, preserving any existing query.
 export function withVersion(url) {

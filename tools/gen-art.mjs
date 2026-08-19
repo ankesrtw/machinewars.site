@@ -125,6 +125,30 @@ const PROMPTS = [
         'and sky are neutral white and pale grey, completely colourless, like black and white film. ' +
         'A single amber floodlight burning through driving snow is the only colour. Brutal, exposed.') },
 
+    /* ── OCEAN + GRID — P1.9.3 sites, no art yet. Grounded in the authored scene
+       data (data/scenes/{ocean,grid}.data.js): ocean has the tightest playable
+       footprint of any ground site (58 vs 80-88 elsewhere) and no ground approach
+       at all -- "platform, not open field" is the read. grid is the non-geographic
+       finale node, CREON's own architecture, procedural ground with no texture. ── */
+    { name: 'ocean', set: 'zones', ar: '4:3', out: 'assets/art/zones/ocean.jpg', prompt: ZONE(
+        'A vast offshore launch platform alone in open ocean at dawn. A brutalist steel deck on ' +
+        'massive corroded legs rising out of heavy grey swell, salt-stained and streaked with rust. ' +
+        'A launch gantry and squat guard towers on the deck, blast walls and barricades ringing its ' +
+        'hard edge -- the platform simply stops, with nothing but water beyond it. Low sea fog tearing ' +
+        'across the deck, spray hanging in the air. Heavy overcast sky, flat grey horizon, no land ' +
+        'anywhere. A single amber deck light and one warning strobe are the only colour. Wet metal ' +
+        'reflecting a pale sky. Isolated, cold, nowhere to fall back to.') },
+
+    { name: 'grid', set: 'zones', ar: '4:3', out: 'assets/art/zones/grid.jpg', prompt: ZONE(
+        'The non-physical interior architecture of an artificial intelligence, not a landscape. An ' +
+        'endless dark lattice floor of glowing amber circuit-traces receding to a horizon, vertical ' +
+        'data-spires and monolithic slabs rising from it, some already breaking apart and drifting. ' +
+        'Cracks of hot amber light splitting dark geometry. Extremely dense black haze, embers and ' +
+        'fragments suspended in the air. Overhead, an enormous architectural face-like structure is ' +
+        'barely resolvable in the murk, lit from within in amber -- implied, not literal. Deep ' +
+        'near-black, the only colour anywhere is amber signal light -- no blue, no cyan, no green. ' +
+        'Unstable, collapsing, immense, architectural rather than digital.') },
+
     /* ── SPACE WARS — next wavezone. Card art + a wider hero-style banner. ── */
     { name: 'space', set: 'space', ar: '4:3', out: 'assets/art/zones/space.jpg', prompt: ZONE(
         'A colossal derelict orbital battle station hanging in deep space above a dark planet, its ' +
