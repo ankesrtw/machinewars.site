@@ -303,13 +303,22 @@ Plan ref: [§6.1](ROADMAP-V2.md#61-setup), [§1.5](ROADMAP-V2.md#15-direction-ch
 > heightmap to import (§1.5). The importer takes its place as the first real Unity task,
 > which also makes the perf gate cheap to reach.
 
-- [ ] **P2.1 — Unity 6 LTS + URP project scaffold** · **M**
+- [~] **P2.1 — Unity 6 LTS + URP project scaffold** · **M** *(scaffold done 2026-08-19; device gate open)*
   **Separate `machinewars-unity` repo** — do *not* put it inside this repo. URP 3D
   template; two URP Asset variants (Mobile / Desktop per plan §6.1); Vulkan + GLES3
   fallback; linear colour; ASTC Android / BC7+BC5 Windows.
   **Done when:** an empty scene builds and runs on the target Android device.
+  > **2026-08-19 — scaffold done, done-when NOT met.** `machinewars-unity` exists at
+  > `d:/ai-projects/machinewars-unity` (Unity 6000.5.8f1, URP 17.5, fresh repo, 2
+  > commits). Linear colour, Vulkan+GLES3, ARM64/IL2CPP and ASTC are applied from
+  > `Assets/Editor/ProjectBootstrap.cs` rather than hand-edited ProjectSettings YAML.
+  > Compiles clean headless. **Still open:** the Android build+run, which needs the
+  > P2.3 device — so this stays unticked. Also still open: the two URP Asset variants
+  > (Mobile/Desktop), deferred until P2.5 has numbers to tune them against.
+  > **Gotcha worth keeping:** Input System must be **1.20.0**; the 1.11.2 pinned first
+  > fails to compile against this editor's deprecated `TreeView` API.
 
-- [ ] **P2.2 — Data importer + the staleness guard** · **M** *(was P3.1 — moved up, now the keystone of P2)*
+- [x] **P2.2 — Data importer + the staleness guard** · **M** *(was P3.1 — moved up, now the keystone of P2)* — **done 2026-08-19**
   `[MenuItem]` editor importer (~200 LOC) reading `data/json/*.json` →
   `SceneConfigSO`, `EnemyTypeSO`, `WaveSetSO`, `WeaponSO`, `MissionSO`, `CampaignSO`,
   11 `ObjectiveSO` subclasses. **Do this before any content work** — it makes all later
@@ -329,6 +338,26 @@ Plan ref: [§6.1](ROADMAP-V2.md#61-setup), [§1.5](ROADMAP-V2.md#15-direction-ch
   **Done when:** a `data/` edit round-trips into Unity with **zero hand-editing**, and
   a deliberately stale copy is **rejected** by the importer rather than silently
   half-imported (test both directions).
+  > **2026-08-19 — done, both directions verified headless.** Web side:
+  > `tools/data-to-json.mjs` now also emits `data/json/manifest.json` (sha256 over
+  > path + bytes of all 30 files, CRLF-normalized, no timestamp so it changes iff the
+  > data changes). Unity side: `Assets/Editor/{DataImporter,ManifestGuard,MiniJson}.cs`
+  > + `Assets/Scripts/{DataSO,SceneConfigSO,MissionSO}.cs`.
+  > Imports 3 weapons, 5 enemy types, 6 wave sets, 11 scenes, 10 missions, 1 campaign.
+  > All **11** `ObjectiveSO` subclasses exist (6 are exercised by authored data today);
+  > an unknown type **throws** rather than being skipped.
+  > **Verified:** full import exit 0 with values round-tripping exactly · a hand-edited
+  > copy rejected naming `CHANGED enemies.json`, exit 1, **nothing partial written**
+  > (`heavy.hp` stayed 6, not the injected 99) · a deleted file rejected naming
+  > `MISSING waves/ocean_air.json` · a real `data/` edit (heavy hp 6→7) round-tripped
+  > with zero hand-editing · CRLF hashes identically, so a Windows checkout raises no
+  > false refusal.
+  > **Two re-import bugs found and fixed** (commit `c513a56`), same root cause —
+  > AssetDatabase calls inside a `StartAssetEditing` batch do not see that batch's own
+  > writes: duplicate numbered output folders, and mission objectives **doubling** on
+  > every re-import (m001 2→4). Three consecutive imports are now stable.
+  > **Note:** the campaign graph is **10 nodes, not 11** — `ghats`/`ghats_east` were
+  > retired in P1.9.1. The "11-node" figure elsewhere in the docs is stale.
 
 - [ ] **P2.3 — Acquire + baseline the test device** · **S**
   A real ~3-year-old ~$250 phone (Snapdragon 6-series / Dimensity 900 class). **Not the
